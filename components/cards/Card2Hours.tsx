@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 interface Props {
   totalHours: number;
   totalGames: number;
@@ -11,6 +13,27 @@ const shareUrl = () =>
 export default function Card2Hours({ totalHours, totalGames }: Props) {
   const digits = Math.floor(totalHours).toString().length;
   const numFontSize = digits <= 3 ? 140 : digits === 4 ? 96 : 72;
+
+  const [displayNum, setDisplayNum] = useState(0);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    const duration = 1500;
+    const start = performance.now();
+    const target = Math.floor(totalHours);
+
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayNum(Math.floor(eased * target));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [totalHours]);
+
   return (
     <div
       style={{
@@ -174,7 +197,7 @@ export default function Card2Hours({ totalHours, totalGames }: Props) {
               userSelect: "none",
             }}
           >
-            {totalHours}
+            {displayNum}
           </p>
           {/* Outlined stroke layer */}
           <p
@@ -189,7 +212,7 @@ export default function Card2Hours({ totalHours, totalGames }: Props) {
               position: "relative",
             }}
           >
-            {totalHours}
+            {displayNum}
           </p>
         </div>
 

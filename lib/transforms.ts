@@ -208,3 +208,46 @@ export function getRoleBreakdown(matches: Match[]): RoleBreakdown {
     support: Math.round((counts.support / total) * 100),
   };
 }
+
+// ---------------------------------------------------------------------------
+// 6. getBestGame
+// ---------------------------------------------------------------------------
+
+export interface BestGame {
+  kills: number;
+  deaths: number;
+  assists: number;
+  heroId: number;
+  heroName: string;
+  heroCleanName: string;
+  duration: number;
+  isWin: boolean;
+  matchId: number;
+}
+
+/**
+ * Returns the match with the highest kill count from the date-filtered matches.
+ * Returns null if the matches array is empty.
+ */
+export function getBestGame(
+  matches: Match[],
+  heroes: Hero[],
+): BestGame | null {
+  if (matches.length === 0) return null;
+
+  const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
+  const best = [...matches].sort((a, b) => b.kills - a.kills)[0];
+  const heroData = heroMap.get(best.hero_id);
+
+  return {
+    kills: best.kills,
+    deaths: best.deaths,
+    assists: best.assists,
+    heroId: best.hero_id,
+    heroName: heroData?.localized_name ?? `Hero ${best.hero_id}`,
+    heroCleanName: heroData?.name.replace("npc_dota_hero_", "") ?? "",
+    duration: best.duration,
+    isWin: isWin(best),
+    matchId: best.match_id,
+  };
+}

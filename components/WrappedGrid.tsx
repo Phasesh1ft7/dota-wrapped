@@ -1,12 +1,29 @@
 "use client";
 
 import { useState } from "react";
+
+const ITEM_CDN = "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items";
+
+function TileIcon({ src, fallback }: { src: string; fallback: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span style={{ fontSize: 32, lineHeight: 1 }}>{fallback}</span>;
+  return (
+    <img
+      src={src}
+      alt=""
+      width={52}
+      height={52}
+      style={{ objectFit: "contain", display: "block" }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
 import type { ProfileData, PlayerHeroStats, Hero, Peer, Match, QuizMatch, ItemConstant } from "@/lib/opendota";
-import type { HeroStatEntry, Streaks } from "@/lib/transforms";
+import type { HeroStatEntry, BestGame, Streaks } from "@/lib/transforms";
 import CardModal from "@/components/CardModal";
 import Card1Hero from "@/components/cards/Card1Hero";
 import Card2Hours from "@/components/cards/Card2Hours";
-import Card3Streak from "@/components/cards/Card3Streak";
+import Card3BestGame from "@/components/cards/Card3BestGame";
 import Card4Matchup from "@/components/cards/Card4Matchup";
 import Card5Summary from "@/components/cards/Card5Summary";
 import Card6Teammate from "@/components/cards/Card6Teammate";
@@ -18,6 +35,7 @@ interface Props {
   profile: ProfileData;
   heroStats: HeroStatEntry[];
   totalHours: number;
+  bestGame: BestGame | null;
   streaks: Streaks;
   playerHeroes: PlayerHeroStats[];
   heroList: Hero[] | null;
@@ -33,26 +51,27 @@ type CardId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 const TILES: {
   id: CardId;
-  emoji: string;
+  icon: string;
+  fallback: string;
   label: string;
-  preview?: string;
   gradient: string;
 }[] = [
-  { id: 1, emoji: "⚔️", label: "Top Hero",    gradient: "linear-gradient(135deg,#312e81,#4f46e5)" },
-  { id: 2, emoji: "⏳", label: "Hours Lost",   gradient: "linear-gradient(135deg,#7f1d1d,#ef4444)" },
-  { id: 3, emoji: "🔥", label: "Streaks",      gradient: "linear-gradient(135deg,#14532d,#22c55e)" },
-  { id: 4, emoji: "⚡", label: "Matchups",     gradient: "linear-gradient(135deg,#450a0a,#7f1d1d)" },
-  { id: 5, emoji: "📊", label: "Summary",      gradient: "linear-gradient(135deg,#134e4a,#0d9488)" },
-  { id: 6, emoji: "🤝", label: "Teammate",     gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)" },
-  { id: 7, emoji: "🧠", label: "Personality",  gradient: "linear-gradient(135deg,#4338ca,#3730a3)" },
-  { id: 8, emoji: "📅", label: "Best Month",   gradient: "linear-gradient(135deg,#0369a1,#075985)" },
-  { id: 9, emoji: "🎮", label: "Hero Quiz",    gradient: "linear-gradient(135deg,#be185d,#9d174d)" },
+  { id: 1, icon: "hero",             fallback: "⚔️", label: "Top Hero",    gradient: "linear-gradient(135deg,#312e81,#4f46e5)" },
+  { id: 2, icon: "refresher",        fallback: "⏳", label: "Hours Lost",   gradient: "linear-gradient(135deg,#7f1d1d,#ef4444)" },
+  { id: 3, icon: "bfury",            fallback: "⚔️", label: "Best Game",   gradient: "linear-gradient(135deg,#16a34a,#15803d)" },
+  { id: 4, icon: "blade_mail",       fallback: "⚡", label: "Matchups",    gradient: "linear-gradient(135deg,#450a0a,#7f1d1d)" },
+  { id: 5, icon: "aghanims_scepter", fallback: "📊", label: "Summary",     gradient: "linear-gradient(135deg,#134e4a,#0d9488)" },
+  { id: 6, icon: "ring_of_basilius", fallback: "🤝", label: "Teammate",    gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)" },
+  { id: 7, icon: "ward_observer",    fallback: "🧠", label: "Personality", gradient: "linear-gradient(135deg,#4338ca,#3730a3)" },
+  { id: 8, icon: "moon_shard",       fallback: "📅", label: "Best Month",  gradient: "linear-gradient(135deg,#0369a1,#075985)" },
+  { id: 9, icon: "smoke_of_deceit",  fallback: "🎮", label: "Hero Quiz",   gradient: "linear-gradient(135deg,#be185d,#9d174d)" },
 ];
 
 export default function WrappedGrid({
   profile,
   heroStats,
   totalHours,
+  bestGame,
   streaks,
   playerHeroes,
   heroList,
@@ -67,6 +86,8 @@ export default function WrappedGrid({
   const [hoveredTile, setHoveredTile] = useState<CardId | null>(null);
 
   const topHero = heroStats[0];
+  const topHeroCleanName =
+    heroList?.find((h) => h.id === topHero?.hero_id)?.name.replace("npc_dota_hero_", "") ?? "";
   const avatarUrl = profile.player?.profile?.avatarfull ?? "";
   const playerName = profile.player?.profile?.personaname || "Unknown Player";
 
@@ -74,7 +95,7 @@ export default function WrappedGrid({
     switch (id) {
       case 1: return topHero ? `${topHero.games} games` : "";
       case 2: return `${totalHours}h played`;
-      case 3: return streaks.bestWinStreak > 0 ? `${streaks.bestWinStreak} win streak` : "";
+      case 3: return bestGame ? `${bestGame.kills} kills` : "";
       case 4: return "";
       case 5: return `${totalGames.toLocaleString()} games`;
       case 6: return "";
@@ -91,7 +112,7 @@ export default function WrappedGrid({
       case 2:
         return <Card2Hours totalHours={totalHours} totalGames={totalGames} />;
       case 3:
-        return <Card3Streak streaks={streaks} />;
+        return <Card3BestGame bestGame={bestGame} />;
       case 4:
         return <Card4Matchup playerHeroes={playerHeroes} heroList={heroList} />;
       case 5:
@@ -233,18 +254,17 @@ export default function WrappedGrid({
                 transition: "transform 200ms ease",
               }}
             >
-              {/* Emoji */}
-              <span
-                style={{
-                  position: "absolute",
-                  top: 16,
-                  right: 16,
-                  fontSize: 32,
-                  lineHeight: 1,
-                }}
-              >
-                {tile.emoji}
-              </span>
+              {/* Tile icon */}
+              <div style={{ position: "absolute", top: 12, right: 12 }}>
+                <TileIcon
+                  src={
+                    tile.icon === "hero"
+                      ? `/api/hero-image?hero=${topHeroCleanName}`
+                      : `${ITEM_CDN}/${tile.icon}.png`
+                  }
+                  fallback={tile.fallback}
+                />
+              </div>
 
               {/* Bottom darker strip */}
               <div
