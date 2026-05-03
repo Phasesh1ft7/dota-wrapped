@@ -1,4 +1,4 @@
-import type { Match, Hero } from "./opendota";
+import type { Match, Hero, PlayerHeroStats } from "./opendota";
 
 // ---------------------------------------------------------------------------
 // Win condition (canonical — do not change)
@@ -16,7 +16,7 @@ export interface HeroStatEntry {
   hero_id: number;
   heroName: string;
   games: number;
-  winRate: number; // 0–100
+  winRate: string; // e.g. "52.3"
 }
 
 export interface Streaks {
@@ -39,31 +39,26 @@ export interface RoleBreakdown {
 
 /**
  * Returns the top 5 heroes by games played, with win-rate and resolved name.
- * Games and wins are tallied from the matches array using the canonical isWin.
+ * Uses all-time stats from GET /players/{id}/heroes (playerHeroes).
  */
 export function getHeroStats(
-  matches: Match[],
+  playerHeroes: PlayerHeroStats[],
   heroes: Hero[],
 ): HeroStatEntry[] {
   const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
-  const stats = new Map<number, { games: number; wins: number }>();
 
-  for (const m of matches) {
-    const s = stats.get(m.hero_id) ?? { games: 0, wins: 0 };
-    s.games++;
-    if (isWin(m)) s.wins++;
-    stats.set(m.hero_id, s);
-  }
-
-  return [...stats.entries()]
-    .sort((a, b) => b[1].games - a[1].games)
+  return [...playerHeroes]
+    .sort((a, b) => b.games - a.games)
     .slice(0, 5)
-    .map(([hero_id, { games, wins }]) => ({
-      hero_id,
-      heroName: heroMap.get(hero_id)?.localized_name ?? `Hero ${hero_id}`,
-      games,
-      winRate: Math.round((wins / games) * 100),
-    }));
+    .map((ph) => {
+      const hero_id = Number(ph.hero_id);
+      return {
+        hero_id,
+        heroName: heroMap.get(hero_id)?.localized_name ?? `Hero ${hero_id}`,
+        games: ph.games,
+        winRate: ((ph.win / ph.games) * 100).toFixed(1),
+      };
+    });
 }
 
 // ---------------------------------------------------------------------------
