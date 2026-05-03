@@ -100,7 +100,7 @@ export default function Card8BestMonth({ matches, playerHeroes }: Props) {
       </div>
 
       {/* Main content */}
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         {noData ? (
           <>
             <p

@@ -62,38 +62,33 @@ export default function Card7Personality({
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        padding: "20px 22px 24px",
+        padding: "20px 0 24px",
       }}
     >
       {/* Decorative faded text behind everything */}
       <div
         style={{
           position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: "none",
+          bottom: 80,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 72,
+          fontWeight: 900,
+          color: "white",
+          opacity: 0.07,
           overflow: "hidden",
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+          lineHeight: 1,
+          letterSpacing: "-0.04em",
         }}
       >
-        <span
-          style={{
-            fontSize: 100,
-            fontWeight: 900,
-            color: "white",
-            opacity: 0.05,
-            whiteSpace: "nowrap",
-            letterSpacing: "-0.04em",
-            lineHeight: 1,
-          }}
-        >
-          {type}
-        </span>
+        {type}
       </div>
 
       {/* Top branding */}
-      <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", position: "relative", padding: "0 22px" }}>
         <span style={BRAND}>Dota Wrapped</span>
         <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 800 }}>
           2026
@@ -101,7 +96,7 @@ export default function Card7Personality({
       </div>
 
       {/* Main content */}
-      <div style={{ position: "relative" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px", position: "relative" }}>
         <p
           style={{
             color: "rgba(255,255,255,0.55)",
@@ -140,7 +135,7 @@ export default function Card7Personality({
       </div>
 
       {/* Bottom branding */}
-      <p style={{ ...BRAND, color: "rgba(255,255,255,0.22)", textAlign: "center", position: "relative" }}>
+      <p style={{ ...BRAND, color: "rgba(255,255,255,0.22)", textAlign: "center", position: "relative", padding: "0 22px" }}>
         dotawrapped.gg
       </p>
     </div>

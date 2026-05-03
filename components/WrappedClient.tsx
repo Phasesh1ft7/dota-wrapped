@@ -29,7 +29,7 @@ export default function WrappedClient({ profile, matchesPromise }: Props) {
   const totalHours = getTotalHoursFromHeroes(playerHeroes);
   const totalGames = getAllTimeGames(playerHeroes);
 
-  const streaks = getStreaks(matches);
+  const streaks = getStreaks(matchesData.recentMatches ?? []);
 
   // Year win rate computed from the date-filtered matches array
   const yearWins = matches.filter(
