@@ -1,0 +1,198 @@
+import type { Match, Hero } from "./opendota";
+
+// ---------------------------------------------------------------------------
+// Win condition (canonical — do not change)
+// ---------------------------------------------------------------------------
+
+const isWin = (m: Match): boolean =>
+  (m.radiant_win && m.player_slot < 128) ||
+  (!m.radiant_win && m.player_slot >= 128);
+
+// ---------------------------------------------------------------------------
+// Return-type interfaces
+// ---------------------------------------------------------------------------
+
+export interface HeroStatEntry {
+  hero_id: number;
+  heroName: string;
+  games: number;
+  winRate: number; // 0–100
+}
+
+export interface Streaks {
+  bestWinStreak: number;
+  bestLoseStreak: number;
+  /** Positive = win streak length, negative = loss streak length */
+  currentStreak: number;
+}
+
+export interface RoleBreakdown {
+  carry: number; // lane_role 1  — percentage
+  mid: number; // lane_role 2
+  offlane: number; // lane_role 3
+  support: number; // lane_role 4 or 5
+}
+
+// ---------------------------------------------------------------------------
+// 1. getHeroStats
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the top 5 heroes by games played, with win-rate and resolved name.
+ * Games and wins are tallied from the matches array using the canonical isWin.
+ */
+export function getHeroStats(
+  matches: Match[],
+  heroes: Hero[],
+): HeroStatEntry[] {
+  const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
+  const stats = new Map<number, { games: number; wins: number }>();
+
+  for (const m of matches) {
+    const s = stats.get(m.hero_id) ?? { games: 0, wins: 0 };
+    s.games++;
+    if (isWin(m)) s.wins++;
+    stats.set(m.hero_id, s);
+  }
+
+  return [...stats.entries()]
+    .sort((a, b) => b[1].games - a[1].games)
+    .slice(0, 5)
+    .map(([hero_id, { games, wins }]) => ({
+      hero_id,
+      heroName: heroMap.get(hero_id)?.localized_name ?? `Hero ${hero_id}`,
+      games,
+      winRate: Math.round((wins / games) * 100),
+    }));
+}
+
+// ---------------------------------------------------------------------------
+// 2. getKdaByMonth
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns monthly average KDA keyed by "YYYY-MM", suitable for a line chart.
+ * KDA per match = (kills + assists) / max(deaths, 1).
+ */
+export function getKdaByMonth(matches: Match[]): Record<string, number> {
+  const buckets: Record<string, { sum: number; count: number }> = {};
+
+  for (const m of matches) {
+    const d = new Date(m.start_time * 1000);
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const kda = (m.kills + m.assists) / Math.max(m.deaths, 1);
+    if (!buckets[key]) buckets[key] = { sum: 0, count: 0 };
+    buckets[key].sum += kda;
+    buckets[key].count++;
+  }
+
+  const result: Record<string, number> = {};
+  for (const [key, { sum, count }] of Object.entries(buckets)) {
+    result[key] = Math.round((sum / count) * 100) / 100;
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// 3. getTotalHours
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns total match time in hours, rounded to 1 decimal.
+ * Match duration is in seconds.
+ */
+export function getTotalHours(matches: Match[]): number {
+  const totalSeconds = matches.reduce((acc, m) => acc + m.duration, 0);
+  return Math.round((totalSeconds / 3600) * 10) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// 4. getStreaks
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculates win/loss streaks. Expects matches sorted newest-first.
+ * currentStreak: positive = active win streak, negative = active loss streak.
+ */
+export function getStreaks(matches: Match[]): Streaks {
+  if (matches.length === 0) {
+    return { bestWinStreak: 0, bestLoseStreak: 0, currentStreak: 0 };
+  }
+
+  let bestWinStreak = 0;
+  let bestLoseStreak = 0;
+  let runWin = 0;
+  let runLose = 0;
+
+  for (const m of matches) {
+    if (isWin(m)) {
+      runWin++;
+      runLose = 0;
+    } else {
+      runLose++;
+      runWin = 0;
+    }
+    if (runWin > bestWinStreak) bestWinStreak = runWin;
+    if (runLose > bestLoseStreak) bestLoseStreak = runLose;
+  }
+
+  // currentStreak: scan from newest (index 0) until the outcome flips
+  const firstIsWin = isWin(matches[0]);
+  let current = 0;
+  for (const m of matches) {
+    if (isWin(m) !== firstIsWin) break;
+    current++;
+  }
+
+  return {
+    bestWinStreak,
+    bestLoseStreak,
+    currentStreak: firstIsWin ? current : -current,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 5. getRoleBreakdown
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns percentage breakdown by role for games where lane_role is known.
+ * Matches with null / unrecognised lane_role are excluded from the denominator.
+ */
+export function getRoleBreakdown(matches: Match[]): RoleBreakdown {
+  const counts = { carry: 0, mid: 0, offlane: 0, support: 0 };
+  let total = 0;
+
+  for (const m of matches) {
+    switch (m.lane_role) {
+      case 1:
+        counts.carry++;
+        total++;
+        break;
+      case 2:
+        counts.mid++;
+        total++;
+        break;
+      case 3:
+        counts.offlane++;
+        total++;
+        break;
+      case 4:
+      case 5:
+        counts.support++;
+        total++;
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (total === 0) return { carry: 0, mid: 0, offlane: 0, support: 0 };
+
+  return {
+    carry: Math.round((counts.carry / total) * 100),
+    mid: Math.round((counts.mid / total) * 100),
+    offlane: Math.round((counts.offlane / total) * 100),
+    support: Math.round((counts.support / total) * 100),
+  };
+}
