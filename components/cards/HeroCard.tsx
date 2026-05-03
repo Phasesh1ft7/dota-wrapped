@@ -1,76 +1,108 @@
 "use client";
 
+import type { ProfileData } from "@/lib/opendota";
+import type { HeroStatEntry } from "@/lib/transforms";
+
 interface HeroCardProps {
-  heroName: string;
-  heroInternalName: string;
-  games: number;
-  winRate: string;
+  profile: ProfileData;
+  topHero: HeroStatEntry;
 }
 
-export default function HeroCard({
-  heroName,
-  heroInternalName,
-  games,
-  winRate,
-}: HeroCardProps) {
-  const portraitUrl = `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/${heroInternalName}.png`;
+export default function HeroCard({ profile, topHero }: HeroCardProps) {
+  // npc_dota_hero_templar_assassin → templar_assassin
+  const heroInternalName = (
+    profile.heroList?.find((h) => h.id === topHero.hero_id)?.name ?? ""
+  ).replace("npc_dota_hero_", "");
+
+  // Produces e.g. .../images/heroes/templar_assassin_full.png
+  const portraitUrl = `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${heroInternalName}_full.png`;
 
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl flex flex-col justify-end p-6"
+    <section
       style={{
-        backgroundColor: "#161b22",
-        border: "1px solid #30363d",
-        minHeight: 260,
+        // Break out of any max-w parent — left: 50% + translateX(-50%) = full bleed
+        position: "relative",
+        width: "100vw",
+        left: "50%",
+        transform: "translateX(-50%)",
+        height: "100vh",
+        overflow: "hidden",
+        backgroundColor: "#0d1117",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
       }}
     >
-      {/* Full-bleed hero portrait at 30% opacity */}
+      {/* Full-viewport portrait — no rounding, no constraints */}
       <img
         src={portraitUrl}
-        alt={heroName}
+        alt={topHero.heroName}
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ opacity: 0.3 }}
-      />
-
-      {/* Gradient overlay so text stays readable */}
-      <div
-        className="absolute inset-0"
         style={{
-          background:
-            "linear-gradient(to top, rgba(13,17,23,0.95) 30%, transparent 100%)",
+          position: "absolute",
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          objectFit: "cover",
+          objectPosition: "top",
         }}
       />
 
-      {/* Content */}
-      <div className="relative flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-white/40">
+      {/* Gradient — bottom third only */}
+      <div
+        style={{
+          position: "absolute",
+          inset: "auto 0 0 0",
+          height: "33%",
+          background: "linear-gradient(to top, #0d1117 0%, transparent 100%)",
+        }}
+      />
+
+      {/* Stats anchored to bottom-left */}
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1.5rem",
+          paddingBottom: "3rem",
+          paddingLeft: "2rem",
+        }}
+      >
+        <p className="text-sm font-semibold uppercase tracking-widest text-white/60">
           Most Played Hero
         </p>
 
-        <h2 className="text-2xl font-bold text-white leading-tight">
-          {heroName}
+        <h2 className="text-5xl font-black text-white leading-none tracking-tight">
+          {topHero.heroName}
         </h2>
 
-        <div className="flex gap-6">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-3xl font-black text-white leading-none">
-              {games}
+        <div className="flex gap-10 items-end">
+          <div className="flex flex-col gap-1">
+            <span className="text-6xl font-black text-white leading-none">
+              {topHero.games}
             </span>
-            <span className="text-xs text-white/50">Games</span>
+            <span className="text-sm uppercase tracking-widest text-white/60">
+              Games
+            </span>
           </div>
 
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <span
-              className="text-3xl font-black leading-none"
-              style={{ color: parseFloat(winRate) >= 50 ? "#3fb950" : "#f85149" }}
+              className="text-6xl font-black leading-none"
+              style={{
+                color:
+                  parseFloat(topHero.winRate) >= 50 ? "#3fb950" : "#f85149",
+              }}
             >
-              {winRate}%
+              {topHero.winRate}%
             </span>
-            <span className="text-xs text-white/50">Win Rate</span>
+            <span className="text-sm uppercase tracking-widest text-white/60">
+              Win Rate
+            </span>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

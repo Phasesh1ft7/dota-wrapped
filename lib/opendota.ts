@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 const BASE_URL = "https://api.opendota.com/api";
 
 // ---------------------------------------------------------------------------
@@ -74,6 +76,21 @@ export interface Match {
   party_size: number | null;
 }
 
+export interface Peer {
+  account_id: number;
+  last_played: number;
+  games: number;
+  win: number;
+  with_games: number;
+  with_win: number;
+  against_games: number;
+  against_win: number;
+  personaname: string | null;
+  name: string | null;
+  avatar: string | null;
+  avatarfull: string | null;
+}
+
 export interface Hero {
   id: number;
   name: string;
@@ -117,17 +134,26 @@ export interface Hero {
 }
 
 // ---------------------------------------------------------------------------
-// Aggregated return type
+// Aggregated return types
 // ---------------------------------------------------------------------------
 
-export interface PlayerData {
+/** Fast slice — returned by fetchPlayerProfile (~300 ms). */
+export interface ProfileData {
   player: PlayerProfile | null;
   wl: WinLoss | null;
+  heroList: Hero[] | null;
+}
+
+/** Slow slice — returned by fetchPlayerMatches (3–8 s). */
+export interface MatchesData {
   heroes: PlayerHeroStats[] | null;
   matches: Match[] | null;
   recentMatches: Match[] | null;
-  heroList: Hero[] | null;
+  peers: Peer[] | null;
 }
+
+/** Combined type kept for backwards compatibility. */
+export interface PlayerData extends ProfileData, MatchesData {}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -142,45 +168,85 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Main export
+// Fetch functions
 // ---------------------------------------------------------------------------
 
+/**
+ * Fast (~300 ms): fetches player profile, win/loss, and the global hero list.
+ * Throws Error("PRIVATE_PROFILE") if the profile is private or missing.
+ * Cached for 1 hour per accountId.
+ */
+export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
+  return unstable_cache(
+    async () => {
+      const [playerResult, wlResult, heroListResult] = await Promise.allSettled([
+        fetchJson<PlayerProfile>(`${BASE_URL}/players/${accountId}`),
+        fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl`),
+        fetchJson<Hero[]>(`${BASE_URL}/heroes`),
+      ]);
+
+      const player =
+        playerResult.status === "fulfilled" ? playerResult.value : null;
+
+      if (!player?.profile?.personaname) {
+        throw new Error("PRIVATE_PROFILE");
+      }
+
+      return {
+        player,
+        wl: wlResult.status === "fulfilled" ? wlResult.value : null,
+        heroList:
+          heroListResult.status === "fulfilled" ? heroListResult.value : null,
+      };
+    },
+    [`player-profile-${accountId}`],
+    { revalidate: 3600 },
+  )();
+}
+
+/**
+ * Slow (3–8 s): fetches per-hero stats, full match history, and recent matches.
+ * Individual failures return null for that slice — never throws.
+ * Cached for 1 hour per accountId.
+ */
+export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
+  return unstable_cache(
+    async () => {
+      const [heroesResult, matchesResult, recentMatchesResult, peersResult] =
+        await Promise.allSettled([
+          fetchJson<PlayerHeroStats[]>(
+            `${BASE_URL}/players/${accountId}/heroes`,
+          ),
+          fetchJson<Match[]>(
+            `${BASE_URL}/players/${accountId}/matches?limit=500&date=365`,
+          ),
+          fetchJson<Match[]>(`${BASE_URL}/players/${accountId}/recentMatches`),
+          fetchJson<Peer[]>(`${BASE_URL}/players/${accountId}/peers`),
+        ]);
+
+      return {
+        heroes:
+          heroesResult.status === "fulfilled" ? heroesResult.value : null,
+        matches:
+          matchesResult.status === "fulfilled" ? matchesResult.value : null,
+        recentMatches:
+          recentMatchesResult.status === "fulfilled"
+            ? recentMatchesResult.value
+            : null,
+        peers:
+          peersResult.status === "fulfilled" ? peersResult.value : null,
+      };
+    },
+    [`player-matches-${accountId}`],
+    { revalidate: 3600 },
+  )();
+}
+
+/** Convenience wrapper combining both fetches. */
 export async function fetchPlayerData(accountId: string): Promise<PlayerData> {
-  const [
-    playerResult,
-    wlResult,
-    heroesResult,
-    matchesResult,
-    recentMatchesResult,
-    heroListResult,
-  ] = await Promise.allSettled([
-    fetchJson<PlayerProfile>(`${BASE_URL}/players/${accountId}`),
-    fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl`),
-    fetchJson<PlayerHeroStats[]>(`${BASE_URL}/players/${accountId}/heroes`),
-    fetchJson<Match[]>(
-      `${BASE_URL}/players/${accountId}/matches?limit=500&date=365`,
-    ),
-    fetchJson<Match[]>(`${BASE_URL}/players/${accountId}/recentMatches`),
-    fetchJson<Hero[]>(`${BASE_URL}/heroes`),
+  const [profile, matches] = await Promise.all([
+    fetchPlayerProfile(accountId),
+    fetchPlayerMatches(accountId),
   ]);
-
-  const player =
-    playerResult.status === "fulfilled" ? playerResult.value : null;
-
-  if (!player?.profile?.personaname) {
-    throw new Error("PRIVATE_PROFILE");
-  }
-
-  return {
-    player,
-    wl: wlResult.status === "fulfilled" ? wlResult.value : null,
-    heroes: heroesResult.status === "fulfilled" ? heroesResult.value : null,
-    matches: matchesResult.status === "fulfilled" ? matchesResult.value : null,
-    recentMatches:
-      recentMatchesResult.status === "fulfilled"
-        ? recentMatchesResult.value
-        : null,
-    heroList:
-      heroListResult.status === "fulfilled" ? heroListResult.value : null,
-  };
+  return { ...profile, ...matches };
 }

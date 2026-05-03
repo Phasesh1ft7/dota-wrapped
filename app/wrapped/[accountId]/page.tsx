@@ -1,5 +1,7 @@
-import { fetchPlayerData } from "@/lib/opendota";
+import { Suspense } from "react";
+import { fetchPlayerProfile, fetchPlayerMatches } from "@/lib/opendota";
 import WrappedClient from "@/components/WrappedClient";
+import WrappedSkeleton from "@/components/WrappedSkeleton";
 
 interface Props {
   params: Promise<{ accountId: string }>;
@@ -8,12 +10,11 @@ interface Props {
 export default async function WrappedPage({ params }: Props) {
   const { accountId } = await params;
 
-  let data;
+  let profile;
   try {
-    data = await fetchPlayerData(accountId);
+    profile = await fetchPlayerProfile(accountId);
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "UNKNOWN_ERROR";
+    const message = err instanceof Error ? err.message : "UNKNOWN_ERROR";
 
     if (message === "PRIVATE_PROFILE") {
       return (
@@ -29,10 +30,7 @@ export default async function WrappedPage({ params }: Props) {
             <p className="text-sm text-white/50">
               This profile is private or does not exist.
             </p>
-            <a
-              href="/"
-              className="mt-2 text-sm text-blue-400 hover:underline"
-            >
+            <a href="/" className="mt-2 text-sm text-blue-400 hover:underline">
               ← Try another account
             </a>
           </div>
@@ -60,5 +58,11 @@ export default async function WrappedPage({ params }: Props) {
     );
   }
 
-  return <WrappedClient data={data} />;
+  const matchesPromise = fetchPlayerMatches(accountId);
+
+  return (
+    <Suspense fallback={<WrappedSkeleton />}>
+      <WrappedClient profile={profile} matchesPromise={matchesPromise} />
+    </Suspense>
+  );
 }

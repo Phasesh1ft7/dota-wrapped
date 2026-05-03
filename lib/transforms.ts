@@ -89,16 +89,33 @@ export function getKdaByMonth(matches: Match[]): Record<string, number> {
 }
 
 // ---------------------------------------------------------------------------
-// 3. getTotalHours
+// 3. getTotalHours / getAllTimeGames / getTotalHoursFromHeroes
 // ---------------------------------------------------------------------------
 
 /**
- * Returns total match time in hours, rounded to 1 decimal.
+ * Returns total match time in hours from a matches array, rounded to 1 decimal.
  * Match duration is in seconds.
  */
 export function getTotalHours(matches: Match[]): number {
   const totalSeconds = matches.reduce((acc, m) => acc + m.duration, 0);
   return Math.round((totalSeconds / 3600) * 10) / 10;
+}
+
+/**
+ * Returns all-time total games played, summed from the /players/{id}/heroes
+ * endpoint (covers full career, not just a date-filtered window).
+ */
+export function getAllTimeGames(playerHeroes: PlayerHeroStats[]): number {
+  return playerHeroes.reduce((acc, ph) => acc + ph.games, 0);
+}
+
+/**
+ * Estimates all-time hours using the playerHeroes all-time games count and a
+ * 40-minute average match duration. Formula: (totalGames × 40) / 60.
+ */
+export function getTotalHoursFromHeroes(playerHeroes: PlayerHeroStats[]): number {
+  const totalGames = getAllTimeGames(playerHeroes);
+  return Math.round((totalGames * 40) / 60);
 }
 
 // ---------------------------------------------------------------------------

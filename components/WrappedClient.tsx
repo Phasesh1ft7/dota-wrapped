@@ -1,60 +1,59 @@
 "use client";
 
-import type { PlayerData } from "@/lib/opendota";
-import { getHeroStats } from "@/lib/transforms";
-import HeroCard from "@/components/cards/HeroCard";
+import { use } from "react";
+import type { ProfileData, MatchesData } from "@/lib/opendota";
+import {
+  getHeroStats,
+  getTotalHoursFromHeroes,
+  getAllTimeGames,
+  getStreaks,
+} from "@/lib/transforms";
+import WrappedGrid from "@/components/WrappedGrid";
 
 interface Props {
-  data: PlayerData;
+  profile: ProfileData;
+  matchesPromise: Promise<MatchesData>;
 }
 
-export default function WrappedClient({ data }: Props) {
-  const heroStats = getHeroStats(
-    data.heroes ?? [],
-    data.heroList ?? [],
-  );
-  const topHero = heroStats[0];
+export default function WrappedClient({ profile, matchesPromise }: Props) {
+  const matchesData = use(matchesPromise);
 
-  const heroInternalName = topHero
-    ? (data.heroList?.find((h) => h.id === topHero.hero_id)?.name ?? "")
-        .replace("npc_dota_hero_", "")
-    : "";
+  const matches = matchesData.matches ?? [];
+
+  const heroStats = getHeroStats(
+    matchesData.heroes ?? [],
+    profile.heroList ?? [],
+  );
+  // All-time stats derived from playerHeroes (covers full career)
+  const playerHeroes = matchesData.heroes ?? [];
+  const totalHours = getTotalHoursFromHeroes(playerHeroes);
+  const totalGames = getAllTimeGames(playerHeroes);
+
+  const streaks = getStreaks(matches);
+
+  // Year win rate computed from the date-filtered matches array
+  const yearWins = matches.filter(
+    (m) =>
+      (m.radiant_win && m.player_slot < 128) ||
+      (!m.radiant_win && m.player_slot >= 128),
+  ).length;
+  const yearWinRate =
+    matches.length > 0
+      ? ((yearWins / matches.length) * 100).toFixed(1)
+      : "0.0";
 
   return (
-    <main
-      className="min-h-screen flex flex-col items-center px-4 py-12"
-      style={{ backgroundColor: "#0d1117" }}
-    >
-      <div className="w-full max-w-sm flex flex-col gap-6">
-        {/* Player header */}
-        {data.player && (
-          <div className="flex items-center gap-3">
-            <img
-              src={data.player.profile.avatarmedium}
-              alt={data.player.profile.personaname}
-              className="w-10 h-10 rounded-full"
-            />
-            <div>
-              <p className="text-sm font-semibold text-white leading-tight">
-                {data.player.profile.personaname}
-              </p>
-              <p className="text-xs text-white/40">Dota Wrapped</p>
-            </div>
-          </div>
-        )}
-
-        {/* Hero card */}
-        {topHero && heroInternalName ? (
-          <HeroCard
-            heroName={topHero.heroName}
-            heroInternalName={heroInternalName}
-            games={topHero.games}
-            winRate={topHero.winRate}
-          />
-        ) : (
-          <p className="text-sm text-white/40">No match data available.</p>
-        )}
-      </div>
-    </main>
+    <WrappedGrid
+      profile={profile}
+      heroStats={heroStats}
+      totalHours={totalHours}
+      streaks={streaks}
+      playerHeroes={playerHeroes}
+      heroList={profile.heroList}
+      peers={matchesData.peers ?? null}
+      matches={matches}
+      totalGames={totalGames}
+      yearWinRate={yearWinRate}
+    />
   );
 }
