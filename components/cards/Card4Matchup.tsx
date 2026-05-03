@@ -128,7 +128,7 @@ export default function Card4Matchup({ playerHeroes, heroList }: Props) {
         >
           <p
             style={{
-              color: "#ef4444",
+              color: "#FF4D30",
               fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.18em",
@@ -208,7 +208,7 @@ export default function Card4Matchup({ playerHeroes, heroList }: Props) {
         >
           <p
             style={{
-              color: "#22c55e",
+              color: "#B9FF33",
               fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.18em",

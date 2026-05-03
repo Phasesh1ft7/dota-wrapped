@@ -91,6 +91,23 @@ export interface Peer {
   avatarfull: string | null;
 }
 
+export interface QuizMatch {
+  matchId: number;
+  heroId: number;
+  items: number[]; // [item_0 … item_5]
+  kills: number;
+  deaths: number;
+  assists: number;
+  radiant_win: boolean;
+  player_slot: number;
+}
+
+export interface ItemConstant {
+  id: number;
+  dname: string;
+  img: string;
+}
+
 export interface Hero {
   id: number;
   name: string;
@@ -150,6 +167,8 @@ export interface MatchesData {
   matches: Match[] | null;
   recentMatches: Match[] | null;
   peers: Peer[] | null;
+  quizMatches: QuizMatch[];
+  itemConstants: Record<string, ItemConstant> | null;
 }
 
 /** Combined type kept for backwards compatibility. */
@@ -165,6 +184,72 @@ async function fetchJson<T>(url: string): Promise<T> {
     throw new Error(`HTTP ${res.status} — ${url}`);
   }
   return res.json() as Promise<T>;
+}
+
+// ---------------------------------------------------------------------------
+// Internal types for /matches/{id} endpoint
+// ---------------------------------------------------------------------------
+
+interface FullMatchPlayer {
+  account_id: number;
+  player_slot: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  hero_id: number;
+  item_0: number;
+  item_1: number;
+  item_2: number;
+  item_3: number;
+  item_4: number;
+  item_5: number;
+}
+
+interface FullMatchData {
+  radiant_win: boolean;
+  players: FullMatchPlayer[];
+}
+
+async function resolveQuizMatches(
+  accountId: string,
+  recentMatches: Match[] | null,
+): Promise<QuizMatch[]> {
+  const targets = (recentMatches ?? [])
+    .filter((m) => m.hero_id !== 0)
+    .slice(0, 5);
+  if (targets.length === 0) return [];
+
+  const accountIdNum = parseInt(accountId, 10);
+  const results = await Promise.allSettled(
+    targets.map((m) =>
+      fetchJson<FullMatchData>(`${BASE_URL}/matches/${m.match_id}`),
+    ),
+  );
+
+  const quizMatches: QuizMatch[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status !== "fulfilled") continue;
+    const full = result.value;
+    const player = full.players.find((p) => p.account_id === accountIdNum);
+    if (!player) continue;
+    const items: number[] = [
+      player.item_0, player.item_1, player.item_2,
+      player.item_3, player.item_4, player.item_5,
+    ];
+    if (items.every((id) => id === 0)) continue;
+    quizMatches.push({
+      matchId: targets[i].match_id,
+      heroId: player.hero_id,
+      items,
+      kills: player.kills,
+      deaths: player.deaths,
+      assists: player.assists,
+      radiant_win: full.radiant_win,
+      player_slot: player.player_slot,
+    });
+  }
+  return quizMatches;
 }
 
 // ---------------------------------------------------------------------------
@@ -212,7 +297,7 @@ export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
 export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
   return unstable_cache(
     async () => {
-      const [heroesResult, matchesResult, recentMatchesResult, peersResult] =
+      const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult] =
         await Promise.allSettled([
           fetchJson<PlayerHeroStats[]>(
             `${BASE_URL}/players/${accountId}/heroes`,
@@ -222,19 +307,29 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
           ),
           fetchJson<Match[]>(`${BASE_URL}/players/${accountId}/recentMatches`),
           fetchJson<Peer[]>(`${BASE_URL}/players/${accountId}/peers`),
+          fetchJson<Record<string, ItemConstant>>(`${BASE_URL}/constants/items`),
         ]);
+
+      const recentMatches =
+        recentMatchesResult.status === "fulfilled"
+          ? recentMatchesResult.value
+          : null;
+
+      const quizMatches = await resolveQuizMatches(accountId, recentMatches);
 
       return {
         heroes:
           heroesResult.status === "fulfilled" ? heroesResult.value : null,
         matches:
           matchesResult.status === "fulfilled" ? matchesResult.value : null,
-        recentMatches:
-          recentMatchesResult.status === "fulfilled"
-            ? recentMatchesResult.value
-            : null,
+        recentMatches,
         peers:
           peersResult.status === "fulfilled" ? peersResult.value : null,
+        quizMatches,
+        itemConstants:
+          itemConstantsResult.status === "fulfilled"
+            ? itemConstantsResult.value
+            : null,
       };
     },
     [`player-matches-${accountId}`],

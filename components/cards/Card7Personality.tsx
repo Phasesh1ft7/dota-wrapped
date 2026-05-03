@@ -14,6 +14,7 @@ interface Props {
 interface Personality {
   type: string;
   copy: string;
+  accent: string;
 }
 
 function derivePersonality(
@@ -22,25 +23,42 @@ function derivePersonality(
   totalHours: number,
   wl: WinLoss | null,
 ): Personality {
-  const allTimeWr = wl && wl.win + wl.lose > 0
-    ? (wl.win / (wl.win + wl.lose)) * 100
-    : 0;
+  const allTimeWr =
+    wl && wl.win + wl.lose > 0
+      ? (wl.win / (wl.win + wl.lose)) * 100
+      : 0;
 
-  if (allTimeWr >= 55) return { type: "The Tactician", copy: "You win more than you lose. Respect." };
-  if (streaks.bestWinStreak >= 10) return { type: "The Unstoppable", copy: "Double digits. You were on fire." };
-  if (totalHours >= 1000) return { type: "The Veteran", copy: "Over 1000 hours. Dota is your second job." };
-  if (heroStats[0] && parseFloat(heroStats[0].winRate) < 45) return { type: "The Grinder", copy: "You keep playing despite the odds. Respect." };
-  if (heroStats.length <= 5) return { type: "The One-Trick", copy: "Why learn 120 heroes when you have one?" };
-  return { type: "The Adventurer", copy: "Always trying something new." };
+  if (allTimeWr >= 55)
+    return { type: "The Tactician", copy: "You win more than you lose. Respect.", accent: "#3b82f6" };
+  if (streaks.bestWinStreak >= 10)
+    return { type: "The Unstoppable", copy: "Double digits. You were on fire.", accent: "#f59e0b" };
+  if (totalHours >= 1000)
+    return { type: "The Veteran", copy: "Over 1000 hours. Dota is your second job.", accent: "#8b5cf6" };
+  if (heroStats[0] && parseFloat(heroStats[0].winRate) < 45)
+    return { type: "The Grinder", copy: "You keep playing despite the odds. Respect.", accent: "#ef4444" };
+  if (heroStats.length <= 5)
+    return { type: "The One-Trick", copy: "Why learn 120 heroes when you have one?", accent: "#ec4899" };
+  return { type: "The Adventurer", copy: "Always trying something new.", accent: "#10b981" };
 }
 
-const BRAND: React.CSSProperties = {
-  color: "rgba(255,255,255,0.5)",
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-};
+const DOT_CONFIG: Array<{
+  size: number;
+  top?: string;
+  bottom?: string;
+  left?: string;
+  right?: string;
+  opacity: number;
+}> = [
+  { size: 64, top: "12%", right: "12%", opacity: 0.12 },
+  { size: 28, top: "30%", left: "6%", opacity: 0.09 },
+  { size: 90, bottom: "18%", right: "4%", opacity: 0.07 },
+  { size: 18, top: "58%", left: "12%", opacity: 0.13 },
+  { size: 42, top: "3%", left: "38%", opacity: 0.08 },
+  { size: 14, bottom: "28%", right: "22%", opacity: 0.14 },
+];
+
+const shareUrl = () =>
+  typeof window !== "undefined" ? window.location.href : "";
 
 export default function Card7Personality({
   heroStats,
@@ -49,95 +67,186 @@ export default function Card7Personality({
   wl,
   totalGames: _totalGames,
 }: Props) {
-  const { type, copy } = derivePersonality(heroStats, streaks, totalHours, wl);
+  const { type, copy, accent } = derivePersonality(heroStats, streaks, totalHours, wl);
+  const nameFontSize = type.length <= 10 ? 64 : type.length <= 14 ? 52 : 40;
 
   return (
     <div
       style={{
         width: "100%",
         height: "100%",
-        background: "linear-gradient(160deg,#1e1b4b,#312e81)",
+        backgroundColor: "#F5F0E8",
         position: "relative",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        padding: "20px 0 24px",
+        padding: "28px 28px 0 28px",
       }}
     >
-      {/* Decorative faded text behind everything */}
-      <div
+      {/* Floating accent dots */}
+      {DOT_CONFIG.map((dot, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            width: dot.size,
+            height: dot.size,
+            borderRadius: "50%",
+            backgroundColor: accent,
+            opacity: dot.opacity,
+            top: dot.top,
+            bottom: dot.bottom,
+            left: dot.left,
+            right: dot.right,
+            pointerEvents: "none",
+          }}
+        />
+      ))}
+
+      {/* 2026 rotated left edge */}
+      <span
         style={{
           position: "absolute",
-          bottom: 80,
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          fontSize: 72,
-          fontWeight: 900,
-          color: "white",
-          opacity: 0.07,
-          overflow: "hidden",
-          whiteSpace: "nowrap",
+          left: 16,
+          top: "50%",
+          transform: "translateY(-50%) rotate(-90deg)",
+          fontSize: 11,
+          letterSpacing: "0.3em",
+          opacity: 0.35,
+          textTransform: "uppercase",
+          color: "#0d0d0d",
           pointerEvents: "none",
-          lineHeight: 1,
-          letterSpacing: "-0.04em",
+          whiteSpace: "nowrap",
+          zIndex: 2,
         }}
       >
-        {type}
-      </div>
+        2026
+      </span>
 
-      {/* Top branding */}
-      <div style={{ display: "flex", justifyContent: "space-between", position: "relative", padding: "0 22px" }}>
-        <span style={BRAND}>Dota Wrapped</span>
-        <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 800 }}>
-          2026
-        </span>
-      </div>
+      {/* SVG scribble — black stroke for cream bg */}
+      <svg
+        viewBox="0 0 300 80"
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: "100%",
+          opacity: 0.1,
+          pointerEvents: "none",
+        }}
+      >
+        <path
+          d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45"
+          fill="none"
+          stroke="black"
+          strokeWidth="2"
+        />
+        <path
+          d="M-10,70 Q80,40 140,65 Q200,85 310,55"
+          fill="none"
+          stroke="black"
+          strokeWidth="1.5"
+        />
+      </svg>
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px", position: "relative" }}>
+      {/* Share button — black pill, white text */}
+      <button
+        onClick={() =>
+          navigator.clipboard?.writeText(shareUrl()).catch(() => {})
+        }
+        style={{
+          position: "absolute",
+          bottom: 44,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 160,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: "#0d0d0d",
+          color: "white",
+          fontSize: 13,
+          fontWeight: 600,
+          border: "none",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          zIndex: 5,
+        }}
+      >
+        Share this story
+      </button>
+
+      {/* DOTA WRAPPED bottom-left */}
+      <p
+        style={{
+          position: "absolute",
+          bottom: 16,
+          left: 28,
+          fontSize: 10,
+          letterSpacing: "0.15em",
+          opacity: 0.35,
+          color: "#0d0d0d",
+          textTransform: "uppercase",
+          margin: 0,
+        }}
+      >
+        Dota Wrapped
+      </p>
+
+      {/* Middle content — flex:1 fills space */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
         <p
           style={{
-            color: "rgba(255,255,255,0.55)",
+            color: "rgba(13,13,13,0.5)",
             fontSize: 11,
             fontWeight: 700,
-            letterSpacing: "0.18em",
+            letterSpacing: "0.2em",
             textTransform: "uppercase",
-            marginBottom: 12,
+            marginBottom: 16,
           }}
         >
           Your Dota Personality
         </p>
+
         <p
           style={{
-            color: "white",
-            fontSize: 52,
+            color: "#0d0d0d",
+            fontSize: nameFontSize,
             fontWeight: 900,
-            lineHeight: 1,
-            letterSpacing: "-0.03em",
-            marginBottom: 16,
+            lineHeight: 0.9,
+            letterSpacing: "-0.04em",
+            textTransform: "uppercase",
+            overflow: "hidden",
+            marginBottom: 20,
           }}
         >
           {type}
         </p>
+
         <p
           style={{
-            color: "rgba(255,255,255,0.5)",
-            fontSize: 15,
-            fontWeight: 500,
+            color: "rgba(13,13,13,0.6)",
+            fontSize: 16,
+            fontWeight: 400,
             lineHeight: 1.5,
-            maxWidth: 280,
           }}
         >
           {copy}
         </p>
       </div>
 
-      {/* Bottom branding */}
-      <p style={{ ...BRAND, color: "rgba(255,255,255,0.22)", textAlign: "center", position: "relative", padding: "0 22px" }}>
-        dotawrapped.gg
-      </p>
+      {/* Spacer for share button + DOTA WRAPPED */}
+      <div style={{ height: 88, flexShrink: 0 }} />
     </div>
   );
 }

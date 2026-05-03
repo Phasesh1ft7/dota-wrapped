@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ProfileData, PlayerHeroStats, Hero, Peer, Match } from "@/lib/opendota";
+import type { ProfileData, PlayerHeroStats, Hero, Peer, Match, QuizMatch, ItemConstant } from "@/lib/opendota";
 import type { HeroStatEntry, Streaks } from "@/lib/transforms";
 import CardModal from "@/components/CardModal";
 import Card1Hero from "@/components/cards/Card1Hero";
@@ -12,6 +12,7 @@ import Card5Summary from "@/components/cards/Card5Summary";
 import Card6Teammate from "@/components/cards/Card6Teammate";
 import Card7Personality from "@/components/cards/Card7Personality";
 import Card8BestMonth from "@/components/cards/Card8BestMonth";
+import CardQuiz from "@/components/cards/CardQuiz";
 
 interface Props {
   profile: ProfileData;
@@ -22,66 +23,30 @@ interface Props {
   heroList: Hero[] | null;
   peers: Peer[] | null;
   matches: Match[];
+  quizMatches: QuizMatch[];
+  itemConstants: Record<string, ItemConstant> | null;
   totalGames: number;
   yearWinRate: string;
 }
 
-type CardId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+type CardId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 const TILES: {
   id: CardId;
   emoji: string;
   label: string;
+  preview?: string;
   gradient: string;
 }[] = [
-  {
-    id: 1,
-    emoji: "⚔️",
-    label: "Top Hero",
-    gradient: "linear-gradient(135deg,#312e81,#4f46e5)",
-  },
-  {
-    id: 2,
-    emoji: "⏳",
-    label: "Hours Lost",
-    gradient: "linear-gradient(135deg,#7f1d1d,#ef4444)",
-  },
-  {
-    id: 3,
-    emoji: "🔥",
-    label: "Streaks",
-    gradient: "linear-gradient(135deg,#14532d,#22c55e)",
-  },
-  {
-    id: 4,
-    emoji: "⚡",
-    label: "Matchups",
-    gradient: "linear-gradient(135deg,#450a0a,#7f1d1d)",
-  },
-  {
-    id: 5,
-    emoji: "📊",
-    label: "Summary",
-    gradient: "linear-gradient(135deg,#134e4a,#0d9488)",
-  },
-  {
-    id: 6,
-    emoji: "🤝",
-    label: "Teammate",
-    gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)",
-  },
-  {
-    id: 7,
-    emoji: "🧠",
-    label: "Personality",
-    gradient: "linear-gradient(135deg,#4338ca,#3730a3)",
-  },
-  {
-    id: 8,
-    emoji: "📅",
-    label: "Best Month",
-    gradient: "linear-gradient(135deg,#0369a1,#075985)",
-  },
+  { id: 1, emoji: "⚔️", label: "Top Hero",    gradient: "linear-gradient(135deg,#312e81,#4f46e5)" },
+  { id: 2, emoji: "⏳", label: "Hours Lost",   gradient: "linear-gradient(135deg,#7f1d1d,#ef4444)" },
+  { id: 3, emoji: "🔥", label: "Streaks",      gradient: "linear-gradient(135deg,#14532d,#22c55e)" },
+  { id: 4, emoji: "⚡", label: "Matchups",     gradient: "linear-gradient(135deg,#450a0a,#7f1d1d)" },
+  { id: 5, emoji: "📊", label: "Summary",      gradient: "linear-gradient(135deg,#134e4a,#0d9488)" },
+  { id: 6, emoji: "🤝", label: "Teammate",     gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)" },
+  { id: 7, emoji: "🧠", label: "Personality",  gradient: "linear-gradient(135deg,#4338ca,#3730a3)" },
+  { id: 8, emoji: "📅", label: "Best Month",   gradient: "linear-gradient(135deg,#0369a1,#075985)" },
+  { id: 9, emoji: "🎮", label: "Hero Quiz",    gradient: "linear-gradient(135deg,#be185d,#9d174d)" },
 ];
 
 export default function WrappedGrid({
@@ -93,20 +58,35 @@ export default function WrappedGrid({
   heroList,
   peers,
   matches,
+  quizMatches,
+  itemConstants,
   totalGames,
   yearWinRate,
 }: Props) {
   const [openCard, setOpenCard] = useState<CardId | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<CardId | null>(null);
 
   const topHero = heroStats[0];
   const avatarUrl = profile.player?.profile?.avatarfull ?? "";
-  const playerName =
-    profile.player?.profile?.personaname ?? "Unknown Player";
+  const playerName = profile.player?.profile?.personaname || "Unknown Player";
+
+  function tilePreview(id: CardId): string {
+    switch (id) {
+      case 1: return topHero ? `${topHero.games} games` : "";
+      case 2: return `${totalHours}h played`;
+      case 3: return streaks.bestWinStreak > 0 ? `${streaks.bestWinStreak} win streak` : "";
+      case 4: return "";
+      case 5: return `${totalGames.toLocaleString()} games`;
+      case 6: return "";
+      case 7: return "";
+      case 8: return "";
+      case 9: return quizMatches.length > 0 ? `${quizMatches.length} matches` : "";
+    }
+  }
 
   function renderCard(id: CardId) {
     switch (id) {
       case 1:
-        console.log('GRID→CARD1 props:', JSON.stringify({topHero, profileWl: profile.wl, heroListLength: profile.heroList?.length, firstHeroList: profile.heroList?.[0]}));
         return <Card1Hero profile={profile} topHero={topHero} />;
       case 2:
         return <Card2Hours totalHours={totalHours} totalGames={totalGames} />;
@@ -115,7 +95,6 @@ export default function WrappedGrid({
       case 4:
         return <Card4Matchup playerHeroes={playerHeroes} heroList={heroList} />;
       case 5:
-        console.log('GRID→CARD5 props:', JSON.stringify({profileWl: profile.wl, heroStatsLength: heroStats.length, totalHours, yearWinRate, totalGames}));
         return (
           <Card5Summary
             profile={profile}
@@ -139,6 +118,14 @@ export default function WrappedGrid({
         );
       case 8:
         return <Card8BestMonth matches={matches} playerHeroes={playerHeroes} />;
+      case 9:
+        return (
+          <CardQuiz
+            quizMatches={quizMatches}
+            itemConstants={itemConstants}
+            heroList={heroList}
+          />
+        );
     }
   }
 
@@ -146,22 +133,29 @@ export default function WrappedGrid({
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#0d1117",
+        backgroundColor: "#000000",
         color: "white",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "40px 20px 60px",
+        padding: "48px 20px 72px",
       }}
     >
-      {/* Player header */}
+      {/* Player header with stripe pattern */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 12,
-          marginBottom: 32,
+          gap: 10,
+          marginBottom: 40,
+          padding: "28px 40px",
+          position: "relative",
+          background:
+            "repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px)",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 400,
         }}
       >
         {avatarUrl && (
@@ -178,9 +172,9 @@ export default function WrappedGrid({
         )}
         <p
           style={{
-            fontSize: 22,
+            fontSize: 28,
             fontWeight: 800,
-            letterSpacing: "-0.01em",
+            letterSpacing: "-0.02em",
             color: "white",
           }}
         >
@@ -188,10 +182,11 @@ export default function WrappedGrid({
         </p>
         <p
           style={{
-            fontSize: 13,
-            color: "rgba(255,255,255,0.45)",
-            fontWeight: 500,
-            letterSpacing: "0.05em",
+            fontSize: 11,
+            color: "rgba(255,255,255,0.4)",
+            fontWeight: 600,
+            letterSpacing: "0.25em",
+            textTransform: "uppercase",
           }}
         >
           Your 2026 Dota Wrapped
@@ -210,10 +205,14 @@ export default function WrappedGrid({
       >
         {TILES.map((tile, idx) => {
           const isOddLast = TILES.length % 2 !== 0 && idx === TILES.length - 1;
+          const isHovered = hoveredTile === tile.id;
+          const preview = tilePreview(tile.id);
           return (
             <button
               key={tile.id}
               onClick={() => setOpenCard(tile.id)}
+              onMouseEnter={() => setHoveredTile(tile.id)}
+              onMouseLeave={() => setHoveredTile(null)}
               style={{
                 gridColumn: isOddLast ? "1 / -1" : undefined,
                 justifySelf: isOddLast ? "center" : undefined,
@@ -227,9 +226,11 @@ export default function WrappedGrid({
                 flexDirection: "column",
                 alignItems: "flex-start",
                 justifyContent: "flex-end",
-                padding: "16px 18px",
+                padding: "0 18px 16px",
                 position: "relative",
                 overflow: "hidden",
+                transform: isHovered ? "scale(1.02)" : "scale(1)",
+                transition: "transform 200ms ease",
               }}
             >
               {/* Emoji */}
@@ -245,14 +246,45 @@ export default function WrappedGrid({
                 {tile.emoji}
               </span>
 
-              {/* Label */}
+              {/* Bottom darker strip */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 56,
+                  background: "rgba(0,0,0,0.28)",
+                  borderRadius: "0 0 18px 18px",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* Stat preview */}
+              {preview && (
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    letterSpacing: "0.02em",
+                    marginBottom: 3,
+                    position: "relative",
+                  }}
+                >
+                  {preview}
+                </span>
+              )}
+
+              {/* Tile label */}
               <span
                 style={{
                   color: "rgba(255,255,255,0.9)",
-                  fontSize: 15,
-                  fontWeight: 800,
-                  letterSpacing: "-0.01em",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
                   textAlign: "left",
+                  position: "relative",
                 }}
               >
                 {tile.label}

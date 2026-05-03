@@ -52,6 +52,8 @@ export default function WrappedClient({ profile, matchesPromise }: Props) {
       heroList={profile.heroList}
       peers={matchesData.peers ?? null}
       matches={matches}
+      quizMatches={matchesData.quizMatches ?? []}
+      itemConstants={matchesData.itemConstants ?? null}
       totalGames={totalGames}
       yearWinRate={yearWinRate}
     />

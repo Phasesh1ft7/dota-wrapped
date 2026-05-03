@@ -44,6 +44,7 @@ export default function Card1Hero({ profile, topHero }: Props) {
   }
   const cleanName = heroData?.name.replace("npc_dota_hero_", "") ?? "";
   const imgUrl = `/api/hero-image?hero=${cleanName}`;
+  const imgFallback = `/api/hero-image?hero=${cleanName}`;
   const isGoodWr = parseFloat(topHero.winRate) >= 50;
 
   return (
@@ -65,28 +66,25 @@ export default function Card1Hero({ profile, topHero }: Props) {
         <img
           src={imgUrl}
           alt={topHero.heroName}
-          crossOrigin="anonymous"
-          onLoad={() => console.log("Final image URL:", imgUrl)}
-          onError={(e) => console.log("Failed URL:", e.currentTarget.src)}
+          onError={(e) => { e.currentTarget.src = imgFallback; }}
           style={{
             position: "absolute",
             inset: 0,
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "top",
+            objectPosition: "50% 20%",
           }}
         />
       )}
-
       {/* Gradient overlay — bottom 50% */}
       <div
         style={{
           position: "absolute",
           inset: "auto 0 0 0",
-          height: "55%",
+          height: "70%",
           background:
-            "linear-gradient(to top,#000 0%,rgba(0,0,0,0.75) 55%,transparent 100%)",
+            "linear-gradient(to top,#000000 0%,#000000 40%,rgba(0,0,0,0.85) 60%,transparent 100%)",
           pointerEvents: "none",
         }}
       />
@@ -135,8 +133,9 @@ export default function Card1Hero({ profile, topHero }: Props) {
             color: "white",
             fontSize: 42,
             fontWeight: 900,
-            lineHeight: 1,
-            letterSpacing: "-0.02em",
+            lineHeight: 0.9,
+            letterSpacing: "-0.04em",
+            textTransform: "uppercase",
             marginBottom: 20,
           }}
         >
@@ -150,7 +149,9 @@ export default function Card1Hero({ profile, topHero }: Props) {
                 color: "white",
                 fontSize: 46,
                 fontWeight: 900,
-                lineHeight: 1,
+                lineHeight: 0.9,
+                letterSpacing: "-0.04em",
+                textTransform: "uppercase",
                 marginBottom: 4,
               }}
             >
@@ -172,7 +173,9 @@ export default function Card1Hero({ profile, topHero }: Props) {
               style={{
                 fontSize: 46,
                 fontWeight: 900,
-                lineHeight: 1,
+                lineHeight: 0.9,
+                letterSpacing: "-0.04em",
+                textTransform: "uppercase",
                 marginBottom: 4,
                 color: isGoodWr ? "#4ade80" : "#f87171",
               }}

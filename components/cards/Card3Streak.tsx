@@ -6,176 +6,251 @@ interface Props {
   streaks: Streaks;
 }
 
-const BRAND: React.CSSProperties = {
-  color: "rgba(255,255,255,0.5)",
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-};
+const shareUrl = () =>
+  typeof window !== "undefined" ? window.location.href : "";
 
 export default function Card3Streak({ streaks }: Props) {
   const { bestWinStreak, bestLoseStreak, currentStreak } = streaks;
   const currentIsWin = currentStreak > 0;
   const currentAbs = Math.abs(currentStreak);
-  const arrow = currentIsWin ? "↑" : "↓";
 
   return (
     <div
       style={{
         width: "100%",
         height: "100%",
-        backgroundColor: "#0d1117",
+        backgroundColor: "#000000",
         position: "relative",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        padding: "20px 22px 24px",
       }}
     >
-      {/* Top branding row */}
-      <div
+      {/* 2026 rotated left edge */}
+      <span
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 28,
-          flexShrink: 0,
+          position: "absolute",
+          left: 16,
+          top: "50%",
+          transform: "translateY(-50%) rotate(-90deg)",
+          fontSize: 11,
+          letterSpacing: "0.3em",
+          opacity: 0.4,
+          textTransform: "uppercase",
+          color: "white",
+          pointerEvents: "none",
+          whiteSpace: "nowrap",
+          zIndex: 2,
         }}
       >
-        <span style={BRAND}>Dota Wrapped</span>
-        <span
-          style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 800 }}
+        2026
+      </span>
+
+      {/* SVG scribble */}
+      <svg
+        viewBox="0 0 300 80"
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: "100%",
+          opacity: 0.12,
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      >
+        <path
+          d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45"
+          fill="none"
+          stroke="white"
+          strokeWidth="2"
+        />
+        <path
+          d="M-10,70 Q80,40 140,65 Q200,85 310,55"
+          fill="none"
+          stroke="white"
+          strokeWidth="1.5"
+        />
+      </svg>
+
+      {/* Share button */}
+      <button
+        onClick={() =>
+          navigator.clipboard?.writeText(shareUrl()).catch(() => {})
+        }
+        style={{
+          position: "absolute",
+          bottom: 44,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 160,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: "white",
+          color: "black",
+          fontSize: 13,
+          fontWeight: 600,
+          border: "none",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          zIndex: 5,
+        }}
+      >
+        Share this story
+      </button>
+
+      {/* DOTA WRAPPED bottom-left */}
+      <p
+        style={{
+          position: "absolute",
+          bottom: 16,
+          left: 28,
+          fontSize: 10,
+          letterSpacing: "0.15em",
+          opacity: 0.35,
+          color: "white",
+          textTransform: "uppercase",
+          margin: 0,
+          zIndex: 2,
+        }}
+      >
+        Dota Wrapped
+      </p>
+
+      {/* TOP HALF — Win streak, flex:1 */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: "28px 28px 20px 28px",
+          overflow: "hidden",
+        }}
+      >
+        <p
+          style={{
+            color: "rgba(255,255,255,0.5)",
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.25em",
+            textTransform: "uppercase",
+            marginBottom: 4,
+          }}
         >
-          2026
-        </span>
+          Your best
+        </p>
+        <p
+          style={{
+            color: "#B9FF33",
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: "0.3em",
+            textTransform: "uppercase",
+            marginBottom: 8,
+          }}
+        >
+          Win Streak
+        </p>
+        <p
+          style={{
+            color: "white",
+            fontSize: 140,
+            fontWeight: 900,
+            lineHeight: 0.9,
+            letterSpacing: "-0.04em",
+            textTransform: "uppercase",
+          }}
+        >
+          {bestWinStreak}
+        </p>
       </div>
 
-      {/* Two halves side by side */}
+      {/* Divider */}
       <div
         style={{
-          display: "flex",
+          height: 1,
+          backgroundColor: "rgba(255,255,255,0.1)",
+          marginLeft: 28,
+          marginRight: 28,
+          flexShrink: 0,
+        }}
+      />
+
+      {/* BOTTOM HALF — Loss streak, flex:1 */}
+      <div
+        style={{
           flex: 1,
-          gap: 0,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "20px 28px 0 28px",
           overflow: "hidden",
-          borderRadius: 12,
         }}
       >
-        {/* Win half */}
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(22,163,74,0.12)",
-            borderRight: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            padding: "24px 16px",
-          }}
-        >
+        <div>
           <p
             style={{
-              color: "#4ade80",
-              fontSize: 80,
-              fontWeight: 900,
-              lineHeight: 1,
-              letterSpacing: "-0.04em",
-              marginBottom: 8,
-            }}
-          >
-            {bestWinStreak}
-          </p>
-          <p
-            style={{
-              color: "rgba(74,222,128,0.7)",
+              color: "rgba(255,255,255,0.5)",
               fontSize: 10,
               fontWeight: 700,
-              letterSpacing: "0.12em",
+              letterSpacing: "0.25em",
               textTransform: "uppercase",
+              marginBottom: 4,
             }}
           >
-            Best Win
-            <br />
-            Streak
+            Your worst
           </p>
-        </div>
-
-        {/* Lose half */}
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(239,68,68,0.1)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            padding: "24px 16px",
-          }}
-        >
           <p
             style={{
-              color: "#f87171",
-              fontSize: 80,
-              fontWeight: 900,
-              lineHeight: 1,
-              letterSpacing: "-0.04em",
+              color: "#FF4D30",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "0.3em",
+              textTransform: "uppercase",
               marginBottom: 8,
+            }}
+          >
+            Loss Streak
+          </p>
+          <p
+            style={{
+              color: "white",
+              fontSize: 140,
+              fontWeight: 900,
+              lineHeight: 0.9,
+              letterSpacing: "-0.04em",
+              textTransform: "uppercase",
             }}
           >
             {bestLoseStreak}
           </p>
-          <p
-            style={{
-              color: "rgba(248,113,113,0.7)",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}
-          >
-            Worst Loss
-            <br />
-            Streak
-          </p>
         </div>
-      </div>
 
-      {/* Current streak */}
-      <div
-        style={{
-          borderTop: "1px solid rgba(255,255,255,0.07)",
-          paddingTop: 16,
-          marginTop: 16,
-          flexShrink: 0,
-        }}
-      >
-        {currentAbs > 0 ? (
-          <p
-            style={{
-              color: currentIsWin ? "#4ade80" : "#f87171",
-              fontSize: 15,
-              fontWeight: 700,
-              marginBottom: 12,
-            }}
-          >
-            {arrow} Currently on a {currentAbs}-game{" "}
-            {currentIsWin ? "WIN" : "LOSS"} streak
-          </p>
-        ) : (
-          <p
-            style={{
-              color: "rgba(255,255,255,0.3)",
-              fontSize: 13,
-              marginBottom: 12,
-            }}
-          >
-            No active streak
-          </p>
+        {/* Current streak pill */}
+        {currentAbs > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <span
+              style={{
+                display: "inline-block",
+                backgroundColor: currentIsWin ? "#B9FF33" : "#FF4D30",
+                color: "white",
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "5px 14px",
+                borderRadius: 20,
+                letterSpacing: "0.05em",
+              }}
+            >
+              {currentIsWin ? "↑" : "↓"} {currentAbs}-game{" "}
+              {currentIsWin ? "WIN" : "LOSS"} streak
+            </span>
+          </div>
         )}
 
-        <p
-          style={{ ...BRAND, color: "rgba(255,255,255,0.25)", textAlign: "center" }}
-        >
-          dotawrapped.gg
-        </p>
+        {/* Spacer for share button + DOTA WRAPPED */}
+        <div style={{ height: 88, flexShrink: 0 }} />
       </div>
     </div>
   );

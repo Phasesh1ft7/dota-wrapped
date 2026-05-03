@@ -6,13 +6,8 @@ interface Props {
   peers: Peer[] | null;
 }
 
-const BRAND: React.CSSProperties = {
-  color: "rgba(255,255,255,0.5)",
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-};
+const shareUrl = () =>
+  typeof window !== "undefined" ? window.location.href : "";
 
 export default function Card6Teammate({ peers }: Props) {
   const topPeer = (peers ?? [])
@@ -29,84 +24,157 @@ export default function Card6Teammate({ peers }: Props) {
       style={{
         width: "100%",
         height: "100%",
-        backgroundColor: "#1a0a2e",
+        backgroundColor: "#000000",
         position: "relative",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        padding: "20px 22px 24px",
+        padding: "28px 28px 0 28px",
       }}
     >
-      {/* Decorative glow */}
-      <div
+      {/* 2026 rotated left edge */}
+      <span
         style={{
           position: "absolute",
-          top: -60,
-          right: -60,
-          width: 260,
-          height: 260,
-          borderRadius: "50%",
-          background: "radial-gradient(circle,rgba(168,85,247,0.18) 0%,transparent 70%)",
+          left: 16,
+          top: "50%",
+          transform: "translateY(-50%) rotate(-90deg)",
+          fontSize: 11,
+          letterSpacing: "0.3em",
+          opacity: 0.4,
+          textTransform: "uppercase",
+          color: "white",
           pointerEvents: "none",
+          whiteSpace: "nowrap",
+          zIndex: 2,
         }}
-      />
+      >
+        2026
+      </span>
 
-      {/* Top branding */}
-      <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
-        <span style={BRAND}>Dota Wrapped</span>
-        <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 800 }}>
-          2026
-        </span>
-      </div>
+      {/* SVG scribble */}
+      <svg
+        viewBox="0 0 300 80"
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: "100%",
+          opacity: 0.12,
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      >
+        <path
+          d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45"
+          fill="none"
+          stroke="white"
+          strokeWidth="2"
+        />
+        <path
+          d="M-10,70 Q80,40 140,65 Q200,85 310,55"
+          fill="none"
+          stroke="white"
+          strokeWidth="1.5"
+        />
+      </svg>
 
-      {/* Main content */}
-      {topPeer ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 14,
-            position: "relative",
-            flex: 1,
-            justifyContent: "center",
-          }}
-        >
-          {/* Avatar */}
-          {topPeer.avatarfull && (
-            <div
-              style={{
-                width: 96,
-                height: 96,
-                borderRadius: "50%",
-                border: "3px solid #a855f7",
-                overflow: "hidden",
-                flexShrink: 0,
-                boxShadow: "0 0 24px rgba(168,85,247,0.4)",
-              }}
-            >
-              <img
-                src={topPeer.avatarfull}
-                alt={topPeer.personaname ?? "Teammate"}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            </div>
-          )}
+      {/* Share button */}
+      <button
+        onClick={() =>
+          navigator.clipboard?.writeText(shareUrl()).catch(() => {})
+        }
+        style={{
+          position: "absolute",
+          bottom: 44,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 160,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: "white",
+          color: "black",
+          fontSize: 13,
+          fontWeight: 600,
+          border: "none",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          zIndex: 5,
+        }}
+      >
+        Share this story
+      </button>
 
-          <div style={{ textAlign: "center" }}>
+      {/* DOTA WRAPPED bottom-left */}
+      <p
+        style={{
+          position: "absolute",
+          bottom: 16,
+          left: 28,
+          fontSize: 10,
+          letterSpacing: "0.15em",
+          opacity: 0.35,
+          color: "white",
+          textTransform: "uppercase",
+          margin: 0,
+          zIndex: 2,
+        }}
+      >
+        Dota Wrapped
+      </p>
+
+      {/* Middle content — flex:1 fills available space */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {topPeer ? (
+          <>
+            {/* Avatar */}
+            {topPeer.avatarfull && (
+              <div
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: "50%",
+                  border: "3px solid #a855f7",
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  boxShadow: "0 0 24px rgba(168,85,247,0.35)",
+                  marginBottom: 16,
+                }}
+              >
+                <img
+                  src={topPeer.avatarfull}
+                  alt={topPeer.personaname ?? "Teammate"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            )}
+
             <p
               style={{
                 color: "#a855f7",
                 fontSize: 10,
                 fontWeight: 700,
-                letterSpacing: "0.18em",
+                letterSpacing: "0.2em",
                 textTransform: "uppercase",
-                marginBottom: 6,
+                marginBottom: 8,
+                textAlign: "center",
               }}
             >
               Your Most Frequent Teammate
             </p>
+
             <p
               style={{
                 color: "white",
@@ -114,7 +182,8 @@ export default function Card6Teammate({ peers }: Props) {
                 fontWeight: 900,
                 lineHeight: 1.1,
                 letterSpacing: "-0.02em",
-                marginBottom: 14,
+                marginBottom: 20,
+                textAlign: "center",
               }}
             >
               {topPeer.personaname ?? "Unknown"}
@@ -123,52 +192,80 @@ export default function Card6Teammate({ peers }: Props) {
             <div
               style={{
                 display: "flex",
-                gap: 28,
+                gap: 36,
                 justifyContent: "center",
-                marginBottom: 14,
+                marginBottom: 16,
               }}
             >
-              <div>
-                <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>
+              <div style={{ textAlign: "center" }}>
+                <p
+                  style={{
+                    color: "white",
+                    fontSize: 36,
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    marginBottom: 4,
+                  }}
+                >
                   {topPeer.with_games}
                 </p>
-                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                <p
+                  style={{
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: 10,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.12em",
+                  }}
+                >
                   Games together
                 </p>
               </div>
-              <div>
+              <div style={{ textAlign: "center" }}>
                 <p
                   style={{
-                    fontSize: 28,
+                    fontSize: 36,
                     fontWeight: 900,
                     lineHeight: 1,
-                    marginBottom: 2,
-                    color: parseFloat(winRate) >= 50 ? "#4ade80" : "#f87171",
+                    marginBottom: 4,
+                    color:
+                      parseFloat(winRate) >= 50 ? "#4ade80" : "#f87171",
                   }}
                 >
                   {winRate}%
                 </p>
-                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                <p
+                  style={{
+                    color: "rgba(255,255,255,0.4)",
+                    fontSize: 10,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.12em",
+                  }}
+                >
                   Win rate
                 </p>
               </div>
             </div>
 
-            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, fontStyle: "italic" }}>
-              "You&apos;ve been through a lot together."
+            <p
+              style={{
+                color: "rgba(255,255,255,0.3)",
+                fontSize: 12,
+                fontStyle: "italic",
+                textAlign: "center",
+              }}
+            >
+              &ldquo;You&apos;ve been through a lot together.&rdquo;
             </p>
-          </div>
-        </div>
-      ) : (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>No teammate data</p>
-        </div>
-      )}
+          </>
+        ) : (
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+            No teammate data
+          </p>
+        )}
+      </div>
 
-      {/* Bottom branding */}
-      <p style={{ ...BRAND, color: "rgba(255,255,255,0.22)", textAlign: "center" }}>
-        dotawrapped.gg
-      </p>
+      {/* Spacer for share button + DOTA WRAPPED */}
+      <div style={{ height: 88, flexShrink: 0 }} />
     </div>
   );
 }
