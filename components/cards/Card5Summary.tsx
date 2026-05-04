@@ -1,6 +1,7 @@
 "use client";
 
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { motion } from "framer-motion";
 import type { ProfileData, Match } from "@/lib/opendota";
 import type { HeroStatEntry } from "@/lib/transforms";
 
@@ -29,12 +30,15 @@ export default function Card5Summary({
   yearWinRate,
   totalGames,
 }: Props) {
+  console.log('heroStats length:', heroStats?.length);
+  console.log('first hero:', JSON.stringify(heroStats?.[0]));
   const wins = profile.wl?.win ?? 0;
   const losses = profile.wl?.lose ?? 0;
   const allTimeTotal = wins + losses;
   const allTimeWr = allTimeTotal > 0 ? ((wins / allTimeTotal) * 100).toFixed(1) : "0.0";
   const isGoodWr = parseFloat(allTimeWr) >= 50;
-  const top3 = heroStats.slice(0, 3);
+  const hasData = !!profile.wl && (wins > 0 || losses > 0);
+  const top3 = heroStats.slice(0, 5);
   const top5 = heroStats.slice(0, 5);
 
   // Build monthly win rate data for chart
@@ -67,6 +71,7 @@ export default function Card5Summary({
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
+        justifyContent: "space-between",
         padding: "20px 28px 0 28px",
       }}
     >
@@ -156,142 +161,156 @@ export default function Card5Summary({
         <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 800 }}>2026</span>
       </div>
 
-      {/* ── W/L + Win rate ── */}
-      <div style={{ flexShrink: 0, marginBottom: 10 }}>
-        <p
-          style={{
-            color: "white",
-            fontSize: 48,
-            fontWeight: 900,
-            lineHeight: 0.9,
-            letterSpacing: "-0.04em",
-            textTransform: "uppercase",
-            marginBottom: 3,
-          }}
-        >
-          {wins.toLocaleString()}
-          <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 32 }}>{" "}/{" "}</span>
-          {losses.toLocaleString()}
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 5 }}>
-          All-time W / L
-        </p>
-        <p style={{ color: isGoodWr ? "#B9FF33" : "#FF4D30", fontSize: 28, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>
-          {allTimeWr}%
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          win rate
-        </p>
-      </div>
+      {/* ── W/L + Win rate OR stats-unavailable fallback ── */}
+      {hasData ? (
+        <>
+          <div style={{ flexShrink: 0 }}>
+            <p
+              style={{
+                color: "white",
+                fontSize: 48,
+                fontWeight: 900,
+                lineHeight: 0.9,
+                letterSpacing: "-0.04em",
+                textTransform: "uppercase",
+                marginBottom: 3,
+              }}
+            >
+              {wins.toLocaleString()}
+              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 32 }}>{" "}/{" "}</span>
+              {losses.toLocaleString()}
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 5 }}>
+              All-time W / L
+            </p>
+            <p style={{ color: isGoodWr ? "#B9FF33" : "#FF4D30", fontSize: 28, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>
+              {allTimeWr}%
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              win rate
+            </p>
+          </div>
 
-      {/* ── Hero chips (top 3, 72×90) ── */}
-      {top3.length > 0 && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0 }}>
-          {top3.map((hero) => {
-            const heroData = profile.heroList?.find((h) => h.id === hero.hero_id);
-            const cleanName = heroData?.name.replace("npc_dota_hero_", "") ?? "";
-            return (
-              <div
-                key={hero.hero_id}
-                style={{
-                  width: 72,
-                  height: 90,
-                  borderRadius: 8,
-                  overflow: "hidden",
-                  position: "relative",
-                  flexShrink: 0,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                }}
-              >
-                {cleanName && (
-                  <img
-                    src={`/api/hero-image?hero=${cleanName}`}
-                    alt={hero.heroName}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
-                  />
-                )}
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "auto 0 0 0",
-                    background: "linear-gradient(to top,rgba(0,0,0,0.9),transparent)",
-                    padding: "12px 4px 4px",
-                  }}
-                >
-                  <p style={{ color: "white", fontSize: 7, fontWeight: 700, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {hero.heroName}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+          {/* Hero chips (top 3, 72×90) */}
+          {top3.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              {top3.map((hero) => {
+                const heroData = profile.heroList?.find((h) => h.id === hero.hero_id);
+                const cleanName = heroData?.name.replace("npc_dota_hero_", "") ?? "";
+                return (
+                  <div
+                    key={hero.hero_id}
+                    style={{
+                      width: 56,
+                      height: 70,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      position: "relative",
+                      flexShrink: 0,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    {cleanName && (
+                      <img
+                        src={`/api/hero-image?hero=${cleanName}`}
+                        alt={hero.heroName}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ flexShrink: 0 }}>
+          <p style={{ color: "white", fontSize: 32, fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1, marginBottom: 10 }}>
+            Stats Unavailable
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, lineHeight: 1.55 }}>
+            This player&apos;s match data is private or hasn&apos;t been tracked by OpenDota.
+          </p>
         </div>
       )}
 
-      {/* ── Win rate chart OR hero pool bars (mutually exclusive) ── */}
-      <div style={{ flexShrink: 0, marginBottom: 10 }}>
+      {/* ── Win rate over time chart (always shown) ── */}
+      <div style={{ flexShrink: 0 }}>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>
+          Win Rate Over Time
+        </p>
         {hasChartData ? (
-          <>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>
-              Win Rate Over Time
-            </p>
-            <ResponsiveContainer width="100%" height={120}>
-              <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 7, fill: "rgba(255,255,255,0.35)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  height={14}
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tick={{ fontSize: 7, fill: "rgba(255,255,255,0.3)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${v}%`}
-                  width={32}
-                />
-                <Tooltip
-                  formatter={(v) => [`${v}%`, "Win Rate"]}
-                  contentStyle={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.1)", fontSize: 10, borderRadius: 6 }}
-                  labelStyle={{ color: "rgba(255,255,255,0.5)" }}
-                  itemStyle={{ color: "#B9FF33" }}
-                />
-                <Line type="monotone" dataKey="wr" stroke="#B9FF33" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </>
+          <ResponsiveContainer width="100%" height={100}>
+            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 7, fill: "rgba(255,255,255,0.35)" }}
+                axisLine={false}
+                tickLine={false}
+                height={14}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fontSize: 7, fill: "rgba(255,255,255,0.3)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(value) => `${value}%`}
+                width={32}
+              />
+              <Tooltip
+                formatter={(v) => [`${v}%`, "Win Rate"]}
+                contentStyle={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.1)", fontSize: 10, borderRadius: 6 }}
+                labelStyle={{ color: "rgba(255,255,255,0.5)" }}
+                itemStyle={{ color: "#B9FF33" }}
+              />
+              <Line type="monotone" dataKey="wr" stroke="#B9FF33" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
         ) : (
-          <>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>
-              Your Hero Pool
-            </p>
-            {top5.map((hero) => {
-              const wr = parseFloat(hero.winRate);
-              const accent = wr >= 50 ? "#B9FF33" : "#FF4D30";
-              return (
-                <div key={hero.hero_id} style={{ marginBottom: 8 }}>
-                  {/* Name row + stats */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontVariant: "small-caps", letterSpacing: "0.05em" }}>
-                      {hero.heroName}
-                    </span>
-                    <span style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                      <span style={{ color: accent, fontSize: 12, fontWeight: 700 }}>{hero.winRate}%</span>
-                      <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>·</span>
-                      <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>{hero.games} games</span>
-                    </span>
-                  </div>
-                  {/* Progress bar */}
-                  <div style={{ height: 6, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${Math.min(wr, 100)}%`, backgroundColor: accent, borderRadius: 3 }} />
-                  </div>
-                </div>
-              );
-            })}
-          </>
+          <div style={{ height: 44, border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>Not enough match data for chart</p>
+          </div>
         )}
+      </div>
+
+      {/* ── Hero pool bars (always shown) ── */}
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+            Your Hero Pool
+          </p>
+          {!hasData && (
+            <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 9, fontStyle: "italic" }}>
+              from public records
+            </p>
+          )}
+        </div>
+        {top5.map((hero, heroIdx) => {
+          const wr = hero.games > 0 ? parseFloat(hero.winRate) : 0;
+          const accent = wr >= 50 ? "#B9FF33" : "#FF4D30";
+          return (
+            <div key={hero.hero_id} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontVariant: "small-caps", letterSpacing: "0.05em" }}>
+                  {hero.heroName}
+                </span>
+                <span style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                  <span style={{ color: accent, fontSize: 12, fontWeight: 700 }}>{hero.winRate}%</span>
+                  <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>·</span>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>{hero.games} games</span>
+                </span>
+              </div>
+              <div style={{ height: 6, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${Math.min(wr, 100)}%` }}
+                  transition={{ duration: 0.8, delay: heroIdx * 0.1, ease: "easeOut" }}
+                  style={{ height: "100%", backgroundColor: accent, borderRadius: 3 }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── Bottom stats row ── */}

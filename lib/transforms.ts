@@ -16,6 +16,7 @@ export interface HeroStatEntry {
   hero_id: number;
   heroName: string;
   games: number;
+  wins: number;
   winRate: string; // e.g. "52.3"
 }
 
@@ -56,6 +57,7 @@ export function getHeroStats(
         hero_id,
         heroName: heroMap.get(hero_id)?.localized_name ?? `Hero ${hero_id}`,
         games: ph.games,
+        wins: ph.win,
         winRate: ((ph.win / ph.games) * 100).toFixed(1),
       };
     });
@@ -210,7 +212,43 @@ export function getRoleBreakdown(matches: Match[]): RoleBreakdown {
 }
 
 // ---------------------------------------------------------------------------
-// 6. getBestGame
+// 6. getBestHeroMatch
+// ---------------------------------------------------------------------------
+
+export interface BestHeroMatch {
+  kills: number;
+  deaths: number;
+  assists: number;
+  duration: string; // "52m 36s"
+  isWin: boolean;
+  matchId: number;
+}
+
+/**
+ * Returns the highest-kill match for a specific hero from the date-filtered
+ * matches array, or null if the hero hasn't been played.
+ */
+export function getBestHeroMatch(
+  matches: Match[],
+  heroId: number,
+): BestHeroMatch | null {
+  const heroMatches = matches.filter((m) => m.hero_id === heroId);
+  if (heroMatches.length === 0) return null;
+  const best = [...heroMatches].sort((a, b) => b.kills - a.kills)[0];
+  const m = Math.floor(best.duration / 60);
+  const s = best.duration % 60;
+  return {
+    kills: best.kills,
+    deaths: best.deaths,
+    assists: best.assists,
+    duration: `${m}m ${String(s).padStart(2, "0")}s`,
+    isWin: isWin(best),
+    matchId: best.match_id,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 7. getBestGame (all-time)
 // ---------------------------------------------------------------------------
 
 export interface BestGame {

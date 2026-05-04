@@ -163,6 +163,15 @@ export interface ProfileData {
   heroList: Hero[] | null;
 }
 
+export interface BestGameBenchmarks {
+  gold_per_min: { raw: number; pct: number } | null;
+  xp_per_min: { raw: number; pct: number } | null;
+  kills_per_min: { raw: number; pct: number } | null;
+  last_hits_per_min: { raw: number; pct: number } | null;
+  hero_damage_per_min: { raw: number; pct: number } | null;
+  tower_damage: { raw: number; pct: number } | null;
+}
+
 export interface BestGameData {
   kills: number;
   deaths: number;
@@ -176,6 +185,14 @@ export interface BestGameData {
   isWin: boolean;
   isParsed: boolean;
   items: number[];
+  benchmarks: BestGameBenchmarks | null;
+}
+
+export interface BestHeroMatchData {
+  gpm: number | null;
+  lastHits: number | null;
+  isParsed: boolean;
+  items: number[];
 }
 
 /** Slow slice — returned by fetchPlayerMatches (3–8 s). */
@@ -187,6 +204,7 @@ export interface MatchesData {
   quizMatches: QuizMatch[];
   itemConstants: Record<string, ItemConstant> | null;
   bestGameData: BestGameData | null;
+  bestHeroMatchDetails: BestHeroMatchData | null;
 }
 
 /** Combined type kept for backwards compatibility. */
@@ -208,6 +226,11 @@ async function fetchJson<T>(url: string): Promise<T> {
 // Internal types for /matches/{id} endpoint
 // ---------------------------------------------------------------------------
 
+interface BenchmarkEntry {
+  raw: number;
+  pct: number;
+}
+
 interface FullMatchPlayer {
   account_id: number;
   player_slot: number;
@@ -223,6 +246,14 @@ interface FullMatchPlayer {
   item_3: number;
   item_4: number;
   item_5: number;
+  benchmarks?: {
+    gold_per_min?: BenchmarkEntry | null;
+    xp_per_min?: BenchmarkEntry | null;
+    kills_per_min?: BenchmarkEntry | null;
+    last_hits_per_min?: BenchmarkEntry | null;
+    hero_damage_per_min?: BenchmarkEntry | null;
+    tower_damage?: BenchmarkEntry | null;
+  } | null;
 }
 
 interface FullMatchData {
@@ -286,9 +317,8 @@ async function resolveBestGameDetails(
   if (!matches || matches.length === 0) return null;
 
   const heroMap = new Map<number, Hero>((heroes ?? []).map((h) => [h.id, h]));
-  const sorted = [...matches].sort((a, b) => b.kills - a.kills);
-  const parsedBest = sorted.find((m) => m.version !== null) ?? null;
-  const best = parsedBest ?? sorted[0];
+  // Always take the highest-kill match regardless of parse status
+  const best = [...matches].sort((a, b) => b.kills - a.kills)[0];
   if (!best) return null;
 
   const heroData = heroMap.get(best.hero_id);
@@ -307,32 +337,106 @@ async function resolveBestGameDetails(
     isWin: isWinResult,
   };
 
-  if (!parsedBest) {
-    return { ...base, lastHits: null, gpm: null, isParsed: false, items: [] };
-  }
-
+  // Always attempt to fetch full match details
   try {
     const accountIdNum = parseInt(accountId, 10);
     const full = await fetchJson<FullMatchData>(
       `${BASE_URL}/matches/${best.match_id}`,
     );
-    const player = full.players.find((p) => p.account_id === accountIdNum);
+    console.log(
+      "Looking for accountId:", accountId,
+      "type:", typeof accountId,
+      "available ids:", full.players.map((p) => p.account_id),
+    );
+    const player = full.players.find(
+      (p) => String(p.account_id) === String(accountId),
+    );
     if (!player) {
-      return { ...base, lastHits: null, gpm: null, isParsed: false, items: [] };
+      return { ...base, lastHits: null, gpm: null, isParsed: false, items: [], benchmarks: null };
     }
     const items = [
       player.item_0, player.item_1, player.item_2,
       player.item_3, player.item_4, player.item_5,
     ].filter((id) => id !== 0);
+    // Treat as parsed only when version is set AND we got real item data
+    const isParsed = best.version !== null && items.length > 0;
+    const benchmarks: BestGameBenchmarks | null = isParsed && player.benchmarks
+      ? {
+          gold_per_min: player.benchmarks.gold_per_min ?? null,
+          xp_per_min: player.benchmarks.xp_per_min ?? null,
+          kills_per_min: player.benchmarks.kills_per_min ?? null,
+          last_hits_per_min: player.benchmarks.last_hits_per_min ?? null,
+          hero_damage_per_min: player.benchmarks.hero_damage_per_min ?? null,
+          tower_damage: player.benchmarks.tower_damage ?? null,
+        }
+      : null;
     return {
       ...base,
-      lastHits: player.last_hits,
-      gpm: player.gold_per_min,
-      isParsed: true,
+      lastHits: isParsed ? player.last_hits : null,
+      gpm: isParsed ? player.gold_per_min : null,
+      isParsed,
+      items: isParsed ? items : [],
+      benchmarks,
+    };
+  } catch {
+    return { ...base, lastHits: null, gpm: null, isParsed: false, items: [], benchmarks: null };
+  }
+}
+
+async function resolveBestHeroMatchDetails(
+  accountId: string,
+  matches: Match[] | null,
+  playerHeroes: PlayerHeroStats[] | null,
+): Promise<BestHeroMatchData | null> {
+  if (!matches || !playerHeroes || playerHeroes.length === 0) return null;
+
+  // Top hero = most games played
+  const topHeroId = Number(
+    [...playerHeroes].sort((a, b) => b.games - a.games)[0].hero_id,
+  );
+
+  // Fetch all-time hero-specific matches (not limited to date=365)
+  let heroMatches: Match[] = [];
+  try {
+    const heroMatchesRes = await fetch(
+      `${BASE_URL}/players/${accountId}/matches?hero_id=${topHeroId}&limit=20&significant=1`,
+    );
+    heroMatches = heroMatchesRes.ok ? (await heroMatchesRes.json() as Match[]) : [];
+  } catch {
+    // fall through to yearly matches fallback
+  }
+
+  // Fall back to yearly matches if hero-specific fetch returned nothing
+  if (heroMatches.length === 0) {
+    heroMatches = (matches ?? []).filter((m) => m.hero_id === topHeroId);
+  }
+
+  if (heroMatches.length === 0) return null;
+  const bestMatch = [...heroMatches].sort((a, b) => b.kills - a.kills)[0];
+
+  try {
+    const full = await fetchJson<FullMatchData>(
+      `${BASE_URL}/matches/${bestMatch.match_id}`,
+    );
+    const player = full.players.find(
+      (p) => String(p.account_id) === String(accountId),
+    );
+    if (!player) return { gpm: null, lastHits: null, isParsed: false, items: [] };
+
+    const items = [
+      player.item_0, player.item_1, player.item_2,
+      player.item_3, player.item_4, player.item_5,
+    ].filter((id) => id !== 0);
+    const isParsed = bestMatch.version !== null && items.length > 0;
+
+    return {
+      gpm: isParsed ? player.gold_per_min : null,
+      lastHits: isParsed ? player.last_hits : null,
+      isParsed,
       items,
     };
   } catch {
-    return { ...base, lastHits: null, gpm: null, isParsed: false, items: [] };
+    return null;
   }
 }
 
@@ -404,14 +508,17 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
       const heroList =
         heroListResult.status === "fulfilled" ? heroListResult.value : null;
 
-      const [quizMatches, bestGameData] = await Promise.all([
+      const playerHeroes =
+        heroesResult.status === "fulfilled" ? heroesResult.value : null;
+
+      const [quizMatches, bestGameData, bestHeroMatchDetails] = await Promise.all([
         resolveQuizMatches(accountId, recentMatches),
         resolveBestGameDetails(accountId, matches, heroList),
+        resolveBestHeroMatchDetails(accountId, matches, playerHeroes),
       ]);
 
       return {
-        heroes:
-          heroesResult.status === "fulfilled" ? heroesResult.value : null,
+        heroes: playerHeroes,
         matches,
         recentMatches,
         peers:
@@ -422,6 +529,7 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
             ? itemConstantsResult.value
             : null,
         bestGameData,
+        bestHeroMatchDetails,
       };
     },
     [`player-matches-${accountId}`],

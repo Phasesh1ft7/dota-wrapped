@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 const ITEM_CDN = "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items";
 
@@ -18,8 +19,8 @@ function TileIcon({ src, fallback }: { src: string; fallback: string }) {
     />
   );
 }
-import type { ProfileData, PlayerHeroStats, Hero, Peer, Match, QuizMatch, ItemConstant, BestGameData } from "@/lib/opendota";
-import type { HeroStatEntry, Streaks } from "@/lib/transforms";
+import type { ProfileData, PlayerHeroStats, Hero, Peer, Match, QuizMatch, ItemConstant, BestGameData, BestHeroMatchData } from "@/lib/opendota";
+import type { HeroStatEntry, BestHeroMatch } from "@/lib/transforms";
 import CardModal from "@/components/CardModal";
 import Card1Hero from "@/components/cards/Card1Hero";
 import Card2Hours from "@/components/cards/Card2Hours";
@@ -27,16 +28,16 @@ import Card3BestGame from "@/components/cards/Card3BestGame";
 import Card4Matchup from "@/components/cards/Card4Matchup";
 import Card5Summary from "@/components/cards/Card5Summary";
 import Card6Teammate from "@/components/cards/Card6Teammate";
-import Card7Personality from "@/components/cards/Card7Personality";
 import Card8BestMonth from "@/components/cards/Card8BestMonth";
 import CardQuiz from "@/components/cards/CardQuiz";
 
 interface Props {
   profile: ProfileData;
   heroStats: HeroStatEntry[];
+  bestHeroMatch: BestHeroMatch | null;
+  bestHeroMatchDetails: BestHeroMatchData | null;
   totalHours: number;
   bestGame: BestGameData | null;
-  streaks: Streaks;
   playerHeroes: PlayerHeroStats[];
   heroList: Hero[] | null;
   peers: Peer[] | null;
@@ -47,7 +48,7 @@ interface Props {
   yearWinRate: string;
 }
 
-type CardId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type CardId = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9;
 
 const TILES: {
   id: CardId;
@@ -62,7 +63,6 @@ const TILES: {
   { id: 4, icon: "blade_mail",       fallback: "⚡", label: "Matchups",    gradient: "linear-gradient(135deg,#450a0a,#7f1d1d)" },
   { id: 5, icon: "aghanims_scepter", fallback: "📊", label: "Summary",     gradient: "linear-gradient(135deg,#134e4a,#0d9488)" },
   { id: 6, icon: "ring_of_basilius", fallback: "🤝", label: "Teammate",    gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)" },
-  { id: 7, icon: "ward_observer",    fallback: "🧠", label: "Personality", gradient: "linear-gradient(135deg,#4338ca,#3730a3)" },
   { id: 8, icon: "moon_shard",       fallback: "📅", label: "Best Month",  gradient: "linear-gradient(135deg,#0369a1,#075985)" },
   { id: 9, icon: "smoke_of_deceit",  fallback: "🎮", label: "Hero Quiz",   gradient: "linear-gradient(135deg,#be185d,#9d174d)" },
 ];
@@ -70,9 +70,10 @@ const TILES: {
 export default function WrappedGrid({
   profile,
   heroStats,
+  bestHeroMatch,
+  bestHeroMatchDetails,
   totalHours,
   bestGame,
-  streaks,
   playerHeroes,
   heroList,
   peers,
@@ -99,7 +100,6 @@ export default function WrappedGrid({
       case 4: return "";
       case 5: return `${totalGames.toLocaleString()} games`;
       case 6: return "";
-      case 7: return "";
       case 8: return "";
       case 9: return quizMatches.length > 0 ? `${quizMatches.length} matches` : "";
     }
@@ -108,7 +108,16 @@ export default function WrappedGrid({
   function renderCard(id: CardId) {
     switch (id) {
       case 1:
-        return <Card1Hero profile={profile} topHero={topHero} />;
+        return (
+          <Card1Hero
+            profile={profile}
+            topHero={topHero}
+            bestHeroMatch={bestHeroMatch}
+            bestHeroMatchDetails={bestHeroMatchDetails}
+            itemConstants={itemConstants}
+            matches={matches}
+          />
+        );
       case 2:
         return <Card2Hours totalHours={totalHours} totalGames={totalGames} />;
       case 3:
@@ -128,16 +137,6 @@ export default function WrappedGrid({
         );
       case 6:
         return <Card6Teammate peers={peers} />;
-      case 7:
-        return (
-          <Card7Personality
-            heroStats={heroStats}
-            streaks={streaks}
-            totalHours={totalHours}
-            wl={profile.wl}
-            totalGames={totalGames}
-          />
-        );
       case 8:
         return <Card8BestMonth matches={matches} playerHeroes={playerHeroes} />;
       case 9:
@@ -216,7 +215,7 @@ export default function WrappedGrid({
       </div>
 
       {/* Tile grid */}
-      <div
+      <motion.div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 160px)",
@@ -224,20 +223,30 @@ export default function WrappedGrid({
           width: "100%",
           maxWidth: 360,
         }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ staggerChildren: 0.05 }}
       >
         {TILES.map((tile, idx) => {
           const isOddLast = TILES.length % 2 !== 0 && idx === TILES.length - 1;
           const isHovered = hoveredTile === tile.id;
           const preview = tilePreview(tile.id);
           return (
-            <button
+            <motion.div
               key={tile.id}
+              style={{
+                gridColumn: isOddLast ? "1 / -1" : undefined,
+                justifySelf: isOddLast ? "center" : undefined,
+              }}
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            >
+            <button
               onClick={() => setOpenCard(tile.id)}
               onMouseEnter={() => setHoveredTile(tile.id)}
               onMouseLeave={() => setHoveredTile(null)}
               style={{
-                gridColumn: isOddLast ? "1 / -1" : undefined,
-                justifySelf: isOddLast ? "center" : undefined,
                 width: 160,
                 height: 160,
                 borderRadius: 18,
@@ -311,9 +320,10 @@ export default function WrappedGrid({
                 {tile.label}
               </span>
             </button>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Modal */}
       {openCard !== null && (

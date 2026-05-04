@@ -2,217 +2,140 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 const CSS = `
-  .lw {
+  * { box-sizing: border-box; }
+
+  .lp {
+    min-height: 100vh;
+    background: #000000;
     display: flex;
     flex-direction: row;
-    min-height: 100vh;
-  }
-
-  /* ── LEFT HALF ── */
-  .ll {
-    width: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 80px 72px;
-    position: relative;
-  }
-
-  /* ── RIGHT HALF ── */
-  .lr {
-    width: 50%;
     position: relative;
     overflow: hidden;
   }
 
-  /* ── Headline ── */
-  .hl-your {
-    color: rgba(255,255,255,0.32);
-    font-size: 72px;
-    font-weight: 900;
-    line-height: 0.95;
-    letter-spacing: -4px;
-    margin: 0;
-    animation: fadeUp 0.5s ease 0s both;
-  }
-  .hl-dota {
-    color: white;
-    font-size: 96px;
-    font-weight: 900;
-    line-height: 0.95;
-    letter-spacing: -4px;
-    margin: 0;
-    animation: fadeUp 0.5s ease 0.1s both;
-  }
-  .hl-wrapped {
-    color: white;
-    font-size: 96px;
-    font-weight: 900;
-    line-height: 0.95;
-    letter-spacing: -4px;
-    margin: 0;
-    animation: fadeUp 0.5s ease 0.2s both;
+  /* ── LEFT COLUMN ── */
+  .lp-left {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 72px 72px 72px 80px;
+    position: relative;
+    z-index: 2;
   }
 
-  .subtext {
+  /* ── RIGHT COLUMN ── */
+  .lp-right {
+    width: 50%;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  /* ── Headline ── */
+  .lp-dota {
+    color: #ffffff;
+    font-size: 88px;
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -4px;
+    margin: 0;
+  }
+  .lp-wrapped {
+    color: #B9FF33;
+    font-size: 88px;
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -4px;
+    margin: 0;
+  }
+  .lp-year {
+    color: rgba(255,255,255,0.3);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    margin: 8px 0 0;
+  }
+  .lp-sub {
     color: rgba(255,255,255,0.4);
     font-size: 16px;
-    line-height: 1.55;
-    margin-top: 32px;
-    margin-bottom: 28px;
-    animation: fadeUp 0.5s ease 0.3s both;
+    font-weight: 400;
+    margin: 24px 0 0;
+    line-height: 1.5;
   }
 
-  .input-section {
-    animation: fadeUp 0.5s ease 0.44s both;
-    max-width: 400px;
-  }
-  .input-row {
+  /* ── Input row ── */
+  .lp-input-row {
     display: flex;
     flex-direction: row;
-    gap: 10px;
+    align-items: center;
+    margin-top: 32px;
   }
-  .sid-input {
-    flex: 1;
-    min-width: 0;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
+  .lp-input {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 8px;
     padding: 14px 18px;
-    color: white;
+    color: #ffffff;
     font-size: 16px;
     outline: none;
+    width: 260px;
     transition: border-color 0.15s;
   }
-  .sid-input::placeholder { color: rgba(255,255,255,0.28); }
-  .sid-input:focus { border-color: rgba(255,255,255,0.28); }
-
-  .go-btn {
-    background: white;
-    color: black;
+  .lp-input::placeholder { color: rgba(255,255,255,0.28); }
+  .lp-input:focus { border-color: rgba(255,255,255,0.3); }
+  .lp-btn {
+    margin-left: 8px;
+    background: #ffffff;
+    color: #000000;
     border: none;
     border-radius: 8px;
-    padding: 14px 28px;
-    font-weight: 700;
+    padding: 14px 24px;
+    font-weight: 800;
     font-size: 15px;
+    text-transform: uppercase;
     cursor: pointer;
+    letter-spacing: 0.04em;
     white-space: nowrap;
     transition: opacity 0.15s;
   }
-  .go-btn:hover { opacity: 0.82; }
-  .go-btn:active { opacity: 0.6; }
+  .lp-btn:hover { opacity: 0.85; }
 
-  .smallprint {
-    color: rgba(255,255,255,0.26);
+  .lp-hint {
+    color: rgba(255,255,255,0.3);
     font-size: 12px;
-    margin-top: 10px;
-    line-height: 1.5;
+    margin-top: 8px;
   }
-  .brand-btm {
+
+  /* ── Branding ── */
+  .lp-brand {
     position: absolute;
-    bottom: 40px;
-    left: 72px;
-    color: rgba(255,255,255,0.18);
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.2);
     font-size: 10px;
+    font-weight: 700;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-  }
-
-  /* ── Animated blobs ── */
-  .blob1 {
-    position: absolute;
-    width: 75%;
-    height: 75%;
-    top: -10%;
-    left: 5%;
-    background: radial-gradient(ellipse, rgba(88,28,135,1) 0%, transparent 65%);
-    opacity: 0.15;
-    pointer-events: none;
-    animation: glow1 18s ease-in-out infinite;
-  }
-  .blob2 {
-    position: absolute;
-    width: 60%;
-    height: 60%;
-    bottom: -5%;
-    right: -5%;
-    background: radial-gradient(ellipse, rgba(127,29,29,1) 0%, transparent 65%);
-    opacity: 0.15;
-    pointer-events: none;
-    animation: glow2 24s ease-in-out infinite;
-  }
-
-  /* ── Preview cards ── */
-  .pc {
-    position: absolute;
-    width: 185px;
-    height: 275px;
-    border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.09);
-    padding: 18px 16px 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-shadow: 0 32px 80px rgba(0,0,0,0.75);
-  }
-  .pc-brand {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-  .pc-lbl {
-    color: rgba(255,255,255,0.38);
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-  .pc-yr {
-    color: rgba(255,255,255,0.55);
-    font-size: 11px;
-    font-weight: 800;
-  }
-  .pc-tag {
-    color: rgba(255,255,255,0.42);
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-
-  /* ── Keyframes ── */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  @keyframes glow1 {
-    0%,100% { transform: scale(1) translate(0,0); }
-    33%     { transform: scale(1.3) translate(20%,-20%); }
-    66%     { transform: scale(0.8) translate(-10%,25%); }
-  }
-  @keyframes glow2 {
-    0%,100% { transform: scale(1.1) translate(0,0); }
-    33%     { transform: scale(0.85) translate(-25%,15%); }
-    66%     { transform: scale(1.25) translate(12%,-14%); }
+    white-space: nowrap;
+    z-index: 3;
   }
 
   /* ── Mobile ── */
   @media (max-width: 768px) {
-    .lw    { flex-direction: column; }
-    .ll    { width: 100%; padding: 72px 32px 96px; justify-content: flex-start; }
-    .lr    { display: none; }
-    .hl-your    { font-size: 48px; }
-    .hl-dota    { font-size: 64px; }
-    .hl-wrapped { font-size: 64px; }
-    .brand-btm  { left: 32px; }
-    .input-section { max-width: 100%; }
+    .lp { flex-direction: column; }
+    .lp-left { width: 100%; padding: 72px 32px 48px; justify-content: flex-start; }
+    .lp-right { display: none; }
+    .lp-dota { font-size: 64px; }
+    .lp-wrapped { font-size: 64px; }
+    .lp-input-row { flex-direction: column; align-items: stretch; }
+    .lp-input { width: 100%; }
+    .lp-btn { margin-left: 0; margin-top: 8px; }
+    .lp-brand { left: 50%; transform: translateX(-50%); }
   }
 `;
 
@@ -235,183 +158,230 @@ export default function HomePage() {
   }
 
   return (
-    <main style={{ backgroundColor: "#000000", position: "relative", overflow: "hidden" }}>
+    <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <main className="lp">
 
-      <div className="lw">
+      {/* ── Element 1: Aegis watermark ── */}
+      <img
+        src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items/aegis.png"
+        alt=""
+        style={{
+          position: "absolute",
+          width: 400,
+          height: 400,
+          objectFit: "contain",
+          opacity: 0.04,
+          top: "50%",
+          left: "25%",
+          transform: "translate(-50%, -50%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
-        {/* ── LEFT HALF ── */}
-        <div className="ll">
-          {/* Stacked headline */}
-          <div>
-            <p className="hl-your">YOUR</p>
-            <p className="hl-dota">DOTA</p>
-            <p className="hl-wrapped">WRAPPED</p>
-          </div>
+      {/* ── Element 2: Roshan silhouette ── */}
+      <svg
+        viewBox="0 0 300 400"
+        style={{
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          width: 300,
+          height: 400,
+          opacity: 0.04,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        {/* Body */}
+        <ellipse cx="150" cy="280" rx="100" ry="120" fill="white" />
+        {/* Head */}
+        <circle cx="150" cy="160" r="70" fill="white" />
+        {/* Left horn */}
+        <polygon points="90,120 60,40 110,100" fill="white" />
+        {/* Right horn */}
+        <polygon points="210,120 240,40 190,100" fill="white" />
+        {/* Left shoulder spike */}
+        <polygon points="60,200 20,150 70,220" fill="white" />
+        {/* Right shoulder spike */}
+        <polygon points="240,200 280,150 230,220" fill="white" />
+      </svg>
 
-          <p className="subtext">
-            Enter your Steam ID to see your<br />2026 Dota stats.
-          </p>
+      {/* ── LEFT COLUMN ── */}
+      <div className="lp-left" style={{ position: "relative", zIndex: 1 }}>
+        <motion.p className="lp-dota"
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
+          DOTA
+        </motion.p>
+        <motion.p className="lp-wrapped"
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
+          WRAPPED
+        </motion.p>
+        <motion.p className="lp-year"
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}>
+          2026
+        </motion.p>
+        <motion.p className="lp-sub"
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+          Your Dota 2 year in review.
+        </motion.p>
 
-          {/* Input row */}
-          <div className="input-section">
-            <div className="input-row">
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Enter Steam ID or account ID"
-                value={accountId}
-                onChange={(e) => {
-                  setAccountId(e.target.value);
-                  if (error) setError("");
-                }}
-                onKeyDown={handleKeyDown}
-                className="sid-input"
-              />
-              <button onClick={handleSubmit} className="go-btn">
-                Go
-              </button>
-            </div>
+        <motion.div className="lp-input-row"
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+          <input
+            className="lp-input"
+            type="text"
+            inputMode="numeric"
+            placeholder="Steam ID or account ID"
+            value={accountId}
+            onChange={(e) => {
+              setAccountId(e.target.value);
+              if (error) setError("");
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          <button className="lp-btn" onClick={handleSubmit}>
+            Go
+          </button>
+        </motion.div>
 
-            {error && (
-              <p style={{ color: "#ef4444", fontSize: 13, marginTop: 8 }}>
-                {error}
-              </p>
-            )}
+        <p className="lp-hint">Find your ID at steamid.io</p>
+        {error && (
+          <p style={{ color: "#FF4D30", fontSize: 13, marginTop: 6 }}>{error}</p>
+        )}
+      </div>
 
-            <p className="smallprint">
-              Your Steam64 ID or account ID. Find it at steamid.io
-            </p>
-          </div>
+      {/* ── RIGHT COLUMN ── */}
+      <div className="lp-right">
+        {/* Radial glow behind card fan */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 500,
+            height: 500,
+            background: "radial-gradient(circle, rgba(185,255,51,0.06) 0%, transparent 70%)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
 
-          <p className="brand-btm">Dotawrapped.gg</p>
-        </div>
-
-        {/* ── RIGHT HALF ── */}
-        <div className="lr">
-          {/* Slow animated gradient blobs */}
-          <div className="blob1" />
-          <div className="blob2" />
-
-          {/* Subtle vertical divider */}
-          <div
+        {/* Card fan — anchored at column center */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            zIndex: 1,
+          }}
+        >
+          {/* Card 1 — back */}
+          <motion.div
             style={{
               position: "absolute",
-              top: 0,
-              left: 0,
-              width: 1,
-              height: "100%",
-              backgroundColor: "rgba(255,255,255,0.06)",
-              pointerEvents: "none",
+              width: 220,
+              height: 320,
+              top: -160,
+              left: -130,
+              background: "linear-gradient(160deg,#1a0a2e,#0d0d1a)",
+              borderRadius: 16,
             }}
+            initial={{ opacity: 0, rotate: -12, x: -60 }}
+            animate={{ opacity: 0.6, rotate: -8, x: -40 }}
+            transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
           />
 
-          {/* Card fan — anchored to right half center */}
-          <div style={{ position: "absolute", top: "50%", left: "50%" }}>
+          {/* Card 2 — middle */}
+          <motion.div
+            style={{
+              position: "absolute",
+              width: 230,
+              height: 330,
+              top: -165,
+              left: -115,
+              background: "linear-gradient(160deg,#1a1a0a,#0d1117)",
+              borderRadius: 16,
+            }}
+            initial={{ opacity: 0, rotate: 8, x: 40 }}
+            animate={{ opacity: 0.8, rotate: 4, x: 20 }}
+            transition={{ duration: 0.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          />
 
-            {/* Card 1 — Top Hero (deep indigo) */}
-            <div
-              className="pc"
-              style={{
-                background: "linear-gradient(148deg,#0c0a22,#25226a)",
-                top: -147,
-                left: -175,
-                transform: "rotate(-3deg)",
-                zIndex: 1,
-                animation: "fadeIn 0.7s ease 0.6s both",
-              }}
-            >
-              <div className="pc-brand">
-                <span className="pc-lbl">Dota Wrapped</span>
-                <span className="pc-yr">2026</span>
-              </div>
-              <div>
-                <p className="pc-tag">Your Most Played</p>
-                <p style={{
-                  fontSize: 44,
-                  lineHeight: 1,
-                  marginBottom: 6,
-                }}>⚔️</p>
-                <p style={{
-                  color: "white",
-                  fontSize: 22,
-                  fontWeight: 900,
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1,
-                }}>Top Hero</p>
+          {/* Card 3 — front */}
+          <motion.div
+            style={{
+              position: "absolute",
+              width: 250,
+              height: 360,
+              top: -180,
+              left: -125,
+              backgroundColor: "#000000",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 16,
+              boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              padding: "20px 20px 24px",
+            }}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Top branding */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+                Dota Wrapped
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 800 }}>2026</span>
+            </div>
+
+            {/* Center content */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+              <img
+                src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items/aegis.png"
+                alt="Aegis"
+                style={{ width: 64, height: 64, objectFit: "contain" }}
+              />
+              {/* Stat chips */}
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                {["9 Cards", "Live Stats", "Shareable"].map((label) => (
+                  <span
+                    key={label}
+                    style={{
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 20,
+                      padding: "4px 12px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.5)",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {label}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Card 2 — Hours Lost (dark crimson) */}
-            <div
-              className="pc"
-              style={{
-                background: "linear-gradient(148deg,#150808,#581212)",
-                top: -137,
-                left: -90,
-                transform: "rotate(0deg)",
-                zIndex: 2,
-                animation: "fadeIn 0.7s ease 0.8s both",
-              }}
-            >
-              <div className="pc-brand">
-                <span className="pc-lbl">Dota Wrapped</span>
-                <span className="pc-yr">2026</span>
-              </div>
-              <div>
-                <p className="pc-tag">Time Played</p>
-                <p style={{
-                  color: "#ef4444",
-                  fontSize: 64,
-                  fontWeight: 900,
-                  lineHeight: 1,
-                  letterSpacing: "-4px",
-                  marginBottom: 2,
-                }}>???</p>
-                <p style={{
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  letterSpacing: "0.25em",
-                  textTransform: "uppercase",
-                }}>Hours</p>
-              </div>
-            </div>
-
-            {/* Card 3 — Summary (dark teal) */}
-            <div
-              className="pc"
-              style={{
-                background: "linear-gradient(148deg,#071413,#0e3c3a)",
-                top: -127,
-                left: -5,
-                transform: "rotate(3deg)",
-                zIndex: 3,
-                animation: "fadeIn 0.7s ease 1.0s both",
-              }}
-            >
-              <div className="pc-brand">
-                <span className="pc-lbl">Dota Wrapped</span>
-                <span className="pc-yr">2026</span>
-              </div>
-              <div>
-                <p className="pc-tag">Your Year</p>
-                <p style={{ fontSize: 44, lineHeight: 1, marginBottom: 6 }}>📊</p>
-                <p style={{
-                  color: "white",
-                  fontSize: 22,
-                  fontWeight: 900,
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1,
-                }}>Summary</p>
-              </div>
-            </div>
-
-          </div>
+            {/* Bottom rule */}
+            <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
+          </motion.div>
         </div>
       </div>
 
-      {/* SVG hand-drawn scribble at bottom */}
+      {/* SVG scribble */}
       <svg
         viewBox="0 0 300 80"
         style={{
@@ -420,23 +390,18 @@ export default function HomePage() {
           left: 0,
           right: 0,
           width: "100%",
-          opacity: 0.1,
+          opacity: 0.08,
           pointerEvents: "none",
+          zIndex: 0,
         }}
       >
-        <path
-          d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-        />
-        <path
-          d="M-10,70 Q80,40 140,65 Q200,85 310,55"
-          fill="none"
-          stroke="white"
-          strokeWidth="1.5"
-        />
+        <path d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45" fill="none" stroke="white" strokeWidth="2" />
+        <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
       </svg>
+
+      {/* Bottom branding */}
+      <p className="lp-brand">Dotawrapped.gg</p>
     </main>
+    </>
   );
 }

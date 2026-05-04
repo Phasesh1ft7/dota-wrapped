@@ -6,7 +6,7 @@ import {
   getHeroStats,
   getTotalHoursFromHeroes,
   getAllTimeGames,
-  getStreaks,
+  getBestHeroMatch,
 } from "@/lib/transforms";
 import WrappedGrid from "@/components/WrappedGrid";
 
@@ -30,7 +30,8 @@ export default function WrappedClient({ profile, matchesPromise }: Props) {
   const totalGames = getAllTimeGames(playerHeroes);
 
   const bestGame = matchesData.bestGameData ?? null;
-  const streaks = getStreaks(matchesData.recentMatches ?? []);
+  const topHeroId = heroStats[0]?.hero_id ?? -1;
+  const bestHeroMatch = topHeroId !== -1 ? getBestHeroMatch(matches, topHeroId) : null;
 
   // Year win rate computed from the date-filtered matches array
   const yearWins = matches.filter(
@@ -47,9 +48,10 @@ export default function WrappedClient({ profile, matchesPromise }: Props) {
     <WrappedGrid
       profile={profile}
       heroStats={heroStats}
+      bestHeroMatch={bestHeroMatch}
+      bestHeroMatchDetails={matchesData.bestHeroMatchDetails ?? null}
       totalHours={totalHours}
       bestGame={bestGame}
-      streaks={streaks}
       playerHeroes={playerHeroes}
       heroList={profile.heroList}
       peers={matchesData.peers ?? null}

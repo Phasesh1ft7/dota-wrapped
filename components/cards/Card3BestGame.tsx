@@ -1,6 +1,7 @@
 "use client";
 
-import type { BestGameData, ItemConstant } from "@/lib/opendota";
+import { motion } from "framer-motion";
+import type { BestGameData, BestGameBenchmarks, ItemConstant } from "@/lib/opendota";
 
 interface Props {
   bestGame: BestGameData | null;
@@ -25,13 +26,34 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
           width: "100%",
           height: "100%",
           backgroundColor: "#000000",
+          position: "relative",
+          overflow: "hidden",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 12,
+          padding: "0 32px 88px",
         }}
       >
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
-          No match data
+        {/* SVG scribble */}
+        <svg
+          viewBox="0 0 300 80"
+          style={{ position: "absolute", bottom: 0, left: 0, right: 0, width: "100%", opacity: 0.1, pointerEvents: "none" }}
+        >
+          <path d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45" fill="none" stroke="white" strokeWidth="2" />
+          <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
+        </svg>
+        {/* DOTA WRAPPED branding */}
+        <p style={{ position: "absolute", bottom: 16, left: 28, fontSize: 10, letterSpacing: "0.15em", opacity: 0.35, color: "white", textTransform: "uppercase", margin: 0 }}>
+          Dota Wrapped
+        </p>
+        <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 120, fontWeight: 900, lineHeight: 1, margin: 0 }}>?</p>
+        <p style={{ color: "white", fontSize: 18, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.25em", textAlign: "center", margin: 0 }}>
+          No Match Data
+        </p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textAlign: "center", maxWidth: 260, lineHeight: 1.5, margin: 0 }}>
+          OpenDota hasn&apos;t tracked this player&apos;s matches yet.
         </p>
       </div>
     );
@@ -39,8 +61,26 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
 
   const {
     kills, deaths, assists, lastHits, gpm,
-    heroCleanName, heroName, duration, isWin, isParsed, items,
+    heroCleanName, heroName, duration, isWin, isParsed, items, benchmarks,
   } = bestGame;
+
+  console.log('bestGame isParsed:', bestGame?.isParsed);
+  console.log('benchmarks:', JSON.stringify(bestGame?.benchmarks));
+
+  // Pre-compute benchmark display items
+  type BenchRow = { key: string; label: string; name: string; data: { raw: number; pct: number } };
+  const benchRows: BenchRow[] = (
+    [
+      { key: "gold_per_min",        label: "GOLD / MIN",    name: "GPM",          data: benchmarks?.gold_per_min ?? null },
+      { key: "last_hits_per_min",   label: "LAST HITS",     name: "CS",           data: benchmarks?.last_hits_per_min ?? null },
+      { key: "hero_damage_per_min", label: "HERO DAMAGE",   name: "DAMAGE",       data: benchmarks?.hero_damage_per_min ?? null },
+      { key: "tower_damage",        label: "TOWER DAMAGE",  name: "TOWER DAMAGE", data: benchmarks?.tower_damage ?? null },
+    ] as Array<{ key: string; label: string; name: string; data: { raw: number; pct: number } | null }>
+  ).filter((b): b is BenchRow => b.data !== null);
+
+  const topBench: BenchRow | null = benchRows.length > 0
+    ? [...benchRows].sort((a, b) => b.data.pct - a.data.pct)[0]
+    : null;
 
   // Build id→{key, img} map for item icons
   const itemById = new Map<number, { key: string; img: string; dname: string }>();
@@ -72,7 +112,7 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            objectPosition: "50% 20%",
+            objectPosition: "center 20%",
           }}
         />
       )}
@@ -371,6 +411,59 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
             Match not parsed — item data unavailable
           </p>
         ) : null}
+
+        {/* ── Benchmarks section ── */}
+        {isParsed ? (
+          benchRows.length > 0 ? (
+            <div style={{ marginTop: 10 }}>
+              {/* Headline */}
+              {topBench && (
+                <p style={{ color: "white", fontSize: 12, fontWeight: 700, lineHeight: 1.35, marginBottom: 8 }}>
+                  YOUR {topBench.name} WAS BETTER THAN{" "}
+                  {Math.round(topBench.data.pct * 100)}% OF PLAYERS
+                </p>
+              )}
+              {/* Label */}
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", fontVariant: "small-caps", marginBottom: 8 }}>
+                How You Compared
+              </p>
+              {/* Bars */}
+              {benchRows.map((b, bIdx) => {
+                const pct = b.data.pct;
+                const color = pct >= 0.8 ? "#B9FF33" : pct >= 0.5 ? "white" : "#FF4D30";
+                const topPct = Math.round((1 - pct) * 100);
+                return (
+                  <div key={b.key} style={{ marginBottom: 7 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                      <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                        {b.label}
+                      </span>
+                      <span style={{ color, fontSize: 10, fontWeight: 700 }}>
+                        TOP {topPct}%
+                      </span>
+                    </div>
+                    <div style={{ height: 4, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                      <motion.div
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${Math.round(pct * 100)}%` }}
+                        transition={{ duration: 0.8, delay: bIdx * 0.15, ease: "easeOut" }}
+                        style={{ height: "100%", backgroundColor: color, borderRadius: 2 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, fontStyle: "italic", marginTop: 10, textAlign: "center" }}>
+              Benchmark data unavailable
+            </p>
+          )
+        ) : (
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>
+            Enable match parsing on opendota.com{"\n"}to see benchmark comparisons
+          </p>
+        )}
 
         {/* Spacer for share button + DOTA WRAPPED */}
         <div style={{ height: 88 }} />
