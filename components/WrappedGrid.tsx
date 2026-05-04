@@ -120,6 +120,7 @@ export default function WrappedGrid({
           <Card5Summary
             profile={profile}
             heroStats={heroStats}
+            matches={matches}
             totalHours={totalHours}
             yearWinRate={yearWinRate}
             totalGames={totalGames}

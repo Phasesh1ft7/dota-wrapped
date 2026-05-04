@@ -83,6 +83,8 @@ export interface Peer {
   win: number;
   with_games: number;
   with_win: number;
+  with_gpm_sum: number;
+  with_xpm_sum: number;
   against_games: number;
   against_win: number;
   personaname: string | null;
