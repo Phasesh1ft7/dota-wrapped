@@ -18,8 +18,8 @@ function TileIcon({ src, fallback }: { src: string; fallback: string }) {
     />
   );
 }
-import type { ProfileData, PlayerHeroStats, Hero, Peer, Match, QuizMatch, ItemConstant } from "@/lib/opendota";
-import type { HeroStatEntry, BestGame, Streaks } from "@/lib/transforms";
+import type { ProfileData, PlayerHeroStats, Hero, Peer, Match, QuizMatch, ItemConstant, BestGameData } from "@/lib/opendota";
+import type { HeroStatEntry, Streaks } from "@/lib/transforms";
 import CardModal from "@/components/CardModal";
 import Card1Hero from "@/components/cards/Card1Hero";
 import Card2Hours from "@/components/cards/Card2Hours";
@@ -35,7 +35,7 @@ interface Props {
   profile: ProfileData;
   heroStats: HeroStatEntry[];
   totalHours: number;
-  bestGame: BestGame | null;
+  bestGame: BestGameData | null;
   streaks: Streaks;
   playerHeroes: PlayerHeroStats[];
   heroList: Hero[] | null;
@@ -112,7 +112,7 @@ export default function WrappedGrid({
       case 2:
         return <Card2Hours totalHours={totalHours} totalGames={totalGames} />;
       case 3:
-        return <Card3BestGame bestGame={bestGame} />;
+        return <Card3BestGame bestGame={bestGame} itemConstants={itemConstants} />;
       case 4:
         return <Card4Matchup playerHeroes={playerHeroes} heroList={heroList} />;
       case 5:
