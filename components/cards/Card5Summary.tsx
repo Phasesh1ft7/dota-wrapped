@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { motion } from "framer-motion";
-import type { ProfileData, Match } from "@/lib/opendota";
+import type { ProfileData, Match, Hero } from "@/lib/opendota";
 import type { HeroStatEntry } from "@/lib/transforms";
 
 interface Props {
   profile: ProfileData;
   heroStats: HeroStatEntry[];
   matches: Match[];
+  heroes: Hero[];
   totalHours: number;
   yearWinRate: string;
   totalGames: number;
@@ -22,23 +24,38 @@ const shareUrl = () =>
 const isMatchWin = (m: Match) =>
   (m.radiant_win && m.player_slot < 128) || (!m.radiant_win && m.player_slot >= 128);
 
+function MatchHeroIcon({ cleanName }: { cleanName: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !cleanName) {
+    return <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: "#1a1a1a", flexShrink: 0 }} />;
+  }
+  return (
+    <img
+      src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${cleanName}.png`}
+      alt=""
+      width={24}
+      height={24}
+      style={{ borderRadius: 4, display: "block", flexShrink: 0, objectFit: "cover" }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export default function Card5Summary({
   profile,
   heroStats,
   matches,
+  heroes,
   totalHours,
   yearWinRate,
   totalGames,
 }: Props) {
-  console.log('heroStats length:', heroStats?.length);
-  console.log('first hero:', JSON.stringify(heroStats?.[0]));
   const wins = profile.wl?.win ?? 0;
   const losses = profile.wl?.lose ?? 0;
   const allTimeTotal = wins + losses;
   const allTimeWr = allTimeTotal > 0 ? ((wins / allTimeTotal) * 100).toFixed(1) : "0.0";
   const isGoodWr = parseFloat(allTimeWr) >= 50;
   const hasData = !!profile.wl && (wins > 0 || losses > 0);
-  const top3 = heroStats.slice(0, 5);
   const top5 = heroStats.slice(0, 5);
 
   // Build monthly win rate data for chart
@@ -60,6 +77,10 @@ export default function Card5Summary({
   })();
 
   const hasChartData = chartData.length >= 3;
+
+  const recentMatches = [...matches]
+    .sort((a, b) => b.start_time - a.start_time)
+    .slice(0, 20);
 
   return (
     <div
@@ -191,10 +212,10 @@ export default function Card5Summary({
             </p>
           </div>
 
-          {/* Hero chips (top 3, 72×90) */}
-          {top3.length > 0 && (
+          {/* Hero chips (top 3, 56×70) */}
+          {top5.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              {top3.map((hero) => {
+              {top5.slice(0, 3).map((hero) => {
                 const heroData = profile.heroList?.find((h) => h.id === hero.hero_id);
                 const cleanName = heroData?.name.replace("npc_dota_hero_", "") ?? "";
                 return (
@@ -234,14 +255,14 @@ export default function Card5Summary({
         </div>
       )}
 
-      {/* ── Win rate over time chart (always shown) ── */}
+      {/* ── Win rate over time chart ── */}
       <div style={{ flexShrink: 0 }}>
         <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>
           Win Rate Over Time
         </p>
         {hasChartData ? (
           <ResponsiveContainer width="100%" height={100}>
-            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+            <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
               <XAxis
                 dataKey="month"
                 tick={{ fontSize: 7, fill: "rgba(255,255,255,0.35)" }}
@@ -251,11 +272,12 @@ export default function Card5Summary({
               />
               <YAxis
                 domain={[0, 100]}
-                tick={{ fontSize: 7, fill: "rgba(255,255,255,0.3)" }}
+                tick={{ fontSize: 12, fill: '#a3a3a3' }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(value) => `${value}%`}
-                width={32}
+                tickFormatter={(v) => `${v}%`}
+                width={42}
+                tickCount={5}
               />
               <Tooltip
                 formatter={(v) => [`${v}%`, "Win Rate"]}
@@ -273,7 +295,7 @@ export default function Card5Summary({
         )}
       </div>
 
-      {/* ── Hero pool bars (always shown) ── */}
+      {/* ── Hero pool bars ── */}
       <div style={{ flexShrink: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" }}>
@@ -311,6 +333,71 @@ export default function Card5Summary({
             </div>
           );
         })}
+      </div>
+
+      {/* ── Match History mini-list ── */}
+      <div style={{ flexShrink: 0 }}>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
+          Recent Matches This Year
+        </p>
+        <div style={{ maxHeight: 180, overflowY: "auto" }}>
+          {recentMatches.map((m, i) => {
+            const win = isMatchWin(m);
+            const hero = heroes.find((h) => h.id === m.hero_id);
+            const cleanName = hero?.name.replace("npc_dota_hero_", "") ?? "";
+            const heroName = hero?.localized_name ?? `Hero ${m.hero_id}`;
+            const duration = Math.floor(m.duration / 60);
+            return (
+              <div
+                key={m.match_id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "4px 0",
+                  height: 36,
+                  backgroundColor: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                }}
+              >
+                <MatchHeroIcon cleanName={cleanName} />
+                <span
+                  style={{
+                    backgroundColor: win ? "#1a3a1a" : "#3a1a1a",
+                    color: win ? "#9ef01a" : "#ef4444",
+                    fontSize: 9,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    flexShrink: 0,
+                  }}
+                >
+                  {win ? "WIN" : "LOSS"}
+                </span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, width: 60, flexShrink: 0 }}>
+                  {m.kills}/{m.deaths}/{m.assists}
+                </span>
+                <span style={{ color: "#c8a84b", fontSize: 11, width: 32, textAlign: "right", flexShrink: 0 }}>
+                  {duration}m
+                </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: 11,
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {heroName}
+                </span>
+              </div>
+            );
+          })}
+          {recentMatches.length === 0 && (
+            <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 10, margin: 0 }}>No match data available</p>
+          )}
+        </div>
       </div>
 
       {/* ── Bottom stats row ── */}

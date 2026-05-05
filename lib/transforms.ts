@@ -1,4 +1,4 @@
-import type { Match, Hero, PlayerHeroStats } from "./opendota";
+import type { Match, Hero, PlayerHeroStats, ItemConstant, PlayerItemStat, PlayerTotal } from "./opendota";
 
 // ---------------------------------------------------------------------------
 // Win condition (canonical — do not change)
@@ -7,6 +7,12 @@ import type { Match, Hero, PlayerHeroStats } from "./opendota";
 const isWin = (m: Match): boolean =>
   (m.radiant_win && m.player_slot < 128) ||
   (!m.radiant_win && m.player_slot >= 128);
+
+function fmtDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${String(s).padStart(2, "0")}s`;
+}
 
 // ---------------------------------------------------------------------------
 // Return-type interfaces
@@ -58,7 +64,7 @@ export function getHeroStats(
         heroName: heroMap.get(hero_id)?.localized_name ?? `Hero ${hero_id}`,
         games: ph.games,
         wins: ph.win,
-        winRate: ((ph.win / ph.games) * 100).toFixed(1),
+        winRate: ph.games > 0 ? ((ph.win / ph.games) * 100).toFixed(1) : "0.0",
       };
     });
 }
@@ -264,7 +270,8 @@ export interface BestGame {
 }
 
 /**
- * Returns the match with the highest kill count from the date-filtered matches.
+ * Returns the highest-KDA parsed match from yearMatches (gold_per_min > 0).
+ * Falls back to the highest-kill unparsed match if no parsed matches exist.
  * Returns null if the matches array is empty.
  */
 export function getBestGame(
@@ -274,7 +281,15 @@ export function getBestGame(
   if (matches.length === 0) return null;
 
   const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
-  const best = [...matches].sort((a, b) => b.kills - a.kills)[0];
+
+  const parsed = matches.filter((m) => (m.gold_per_min ?? 0) > 0);
+  const pool = parsed.length > 0 ? parsed : matches;
+  const best = [...pool].sort((a, b) => {
+    const kdaA = (a.kills + a.assists) / Math.max(a.deaths, 1);
+    const kdaB = (b.kills + b.assists) / Math.max(b.deaths, 1);
+    return kdaB - kdaA;
+  })[0];
+
   const heroData = heroMap.get(best.hero_id);
 
   return {
@@ -287,5 +302,492 @@ export function getBestGame(
     duration: best.duration,
     isWin: isWin(best),
     matchId: best.match_id,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 7b. getBestHeroGame
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the highest-KDA match on a specific hero from yearMatches.
+ * Returns null if the hero hasn't been played.
+ */
+export function getBestHeroGame(
+  matches: Match[],
+  heroId: number,
+  heroes: Hero[],
+): BestGame | null {
+  const heroMatches = matches.filter((m) => m.hero_id === heroId);
+  if (heroMatches.length === 0) return null;
+
+  const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
+  const best = [...heroMatches].sort((a, b) => {
+    const kdaA = (a.kills + a.assists) / Math.max(a.deaths, 1);
+    const kdaB = (b.kills + b.assists) / Math.max(b.deaths, 1);
+    return kdaB - kdaA;
+  })[0];
+
+  const heroData = heroMap.get(best.hero_id);
+  return {
+    kills: best.kills,
+    deaths: best.deaths,
+    assists: best.assists,
+    heroId: best.hero_id,
+    heroName: heroData?.localized_name ?? `Hero ${best.hero_id}`,
+    heroCleanName: heroData?.name.replace("npc_dota_hero_", "") ?? "",
+    duration: best.duration,
+    isWin: isWin(best),
+    matchId: best.match_id,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 8. getTempoStats
+// ---------------------------------------------------------------------------
+
+export interface TempoStats {
+  fastestWin: string | null;
+  longestGame: string | null;
+  avgDuration: string;
+  totalHoursThisYear: number;
+}
+
+export function getTempoStats(yearMatches: Match[]): TempoStats {
+  const wins = yearMatches.filter(isWin);
+
+  const fastestWin =
+    wins.length > 0
+      ? fmtDuration([...wins].sort((a, b) => a.duration - b.duration)[0].duration)
+      : null;
+
+  const longestGame =
+    yearMatches.length > 0
+      ? fmtDuration([...yearMatches].sort((a, b) => b.duration - a.duration)[0].duration)
+      : null;
+
+  const totalSeconds = yearMatches.reduce((sum, m) => sum + m.duration, 0);
+  const avgSeconds = yearMatches.length > 0 ? totalSeconds / yearMatches.length : 0;
+
+  return {
+    fastestWin,
+    longestGame,
+    avgDuration: fmtDuration(Math.round(avgSeconds)),
+    totalHoursThisYear: Math.round((totalSeconds / 3600) * 10) / 10,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 9. getSignatureMoves
+// ---------------------------------------------------------------------------
+
+export interface SignatureMoves {
+  topItemName: string | null;
+  topItemGames: number;
+  mostPlayedHeroName: string;
+  mostPlayedHeroCleanName: string;
+  mostPlayedHeroWinRate: string;
+  overallWinRate: string;
+  totalKills: number;
+  totalDeaths: number;
+  totalAssists: number;
+  dominantRole: string | null;
+  dominantRolePct: number;
+  mostBuiltItemKey: string | null;
+  hoursOnHero: number;
+  heroWinStreak: number;
+  careerGamesOnHero: number;
+  bestHeroGame: BestGame | null;
+}
+
+export function getSignatureMoves(
+  yearMatches: Match[],
+  playerHeroes: PlayerHeroStats[],
+  heroes: Hero[],
+  playerItems: Record<string, PlayerItemStat> | null,
+  itemConstants: Record<string, ItemConstant> | null,
+): SignatureMoves {
+  const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
+
+  let topItemName: string | null = null;
+  let topItemGames = 0;
+  let mostBuiltItemKey: string | null = null;
+  if (playerItems) {
+    const entries = Object.entries(playerItems).filter(([, v]) => v.games > 0);
+    if (entries.length > 0) {
+      const [topKey, stat] = [...entries].sort(([, a], [, b]) => b.games - a.games)[0];
+      topItemGames = stat.games;
+      topItemName = itemConstants?.[topKey]?.dname ?? topKey.replace(/_/g, " ");
+      mostBuiltItemKey = topKey.replace(/^item_/, "");
+    }
+  }
+
+  const totalKills = yearMatches.reduce((s, m) => s + m.kills, 0);
+  const totalDeaths = yearMatches.reduce((s, m) => s + m.deaths, 0);
+  const totalAssists = yearMatches.reduce((s, m) => s + m.assists, 0);
+
+  const topHero =
+    playerHeroes.length > 0
+      ? [...playerHeroes].sort((a, b) => b.games - a.games)[0]
+      : null;
+  const topHeroId = topHero ? Number(topHero.hero_id) : -1;
+  const mostPlayedHeroName =
+    topHeroId > 0 ? (heroMap.get(topHeroId)?.localized_name ?? `Hero ${topHeroId}`) : "—";
+  const mostPlayedHeroCleanName =
+    topHeroId > 0 ? (heroMap.get(topHeroId)?.name.replace("npc_dota_hero_", "") ?? "") : "";
+  const mostPlayedHeroWinRate =
+    topHero && topHero.games > 0
+      ? ((topHero.win / topHero.games) * 100).toFixed(1)
+      : "0.0";
+
+  const totalWins = yearMatches.filter(isWin).length;
+  const overallWinRate =
+    yearMatches.length > 0
+      ? ((totalWins / yearMatches.length) * 100).toFixed(1)
+      : "0.0";
+
+  const counts = { Carry: 0, Mid: 0, Offlane: 0, Support: 0 };
+  for (const m of yearMatches) {
+    if (m.lane_role === 1) counts.Carry++;
+    else if (m.lane_role === 2) counts.Mid++;
+    else if (m.lane_role === 3) counts.Offlane++;
+    else if (m.lane_role === 4 || m.lane_role === 5) counts.Support++;
+  }
+  const roleTotal = Object.values(counts).reduce((a, b) => a + b, 0);
+  let dominantRole: string | null = null;
+  let dominantRolePct = 0;
+  if (roleTotal > 0) {
+    const [role, count] = Object.entries(counts).sort(([, a], [, b]) => b - a)[0];
+    dominantRole = role;
+    dominantRolePct = Math.round((count / roleTotal) * 100);
+  }
+
+  const heroYearMatches = topHeroId > 0 ? yearMatches.filter((m) => m.hero_id === topHeroId) : [];
+
+  const hoursOnHero =
+    Math.round((heroYearMatches.reduce((s, m) => s + m.duration, 0) / 3600) * 10) / 10;
+
+  let heroWinStreak = 0;
+  let run = 0;
+  for (const m of [...heroYearMatches].sort((a, b) => a.match_id - b.match_id)) {
+    if (isWin(m)) { run++; if (run > heroWinStreak) heroWinStreak = run; }
+    else run = 0;
+  }
+
+  const careerEntry = playerHeroes.find((ph) => Number(ph.hero_id) === topHeroId);
+  const careerGamesOnHero = careerEntry?.games ?? 0;
+
+  // bestHeroGame: highest-KDA match on the top hero this year
+  let bestHeroGame: BestGame | null = null;
+  if (heroYearMatches.length > 0) {
+    const sorted = [...heroYearMatches].sort((a, b) => {
+      const kdaA = (a.kills + a.assists) / Math.max(a.deaths, 1);
+      const kdaB = (b.kills + b.assists) / Math.max(b.deaths, 1);
+      return kdaB - kdaA;
+    });
+    const best = sorted[0];
+    const heroData = heroMap.get(best.hero_id);
+    bestHeroGame = {
+      kills: best.kills,
+      deaths: best.deaths,
+      assists: best.assists,
+      heroId: best.hero_id,
+      heroName: heroData?.localized_name ?? `Hero ${best.hero_id}`,
+      heroCleanName: heroData?.name.replace("npc_dota_hero_", "") ?? "",
+      duration: best.duration,
+      isWin: isWin(best),
+      matchId: best.match_id,
+    };
+  }
+
+  return {
+    topItemName,
+    topItemGames,
+    mostPlayedHeroName,
+    mostPlayedHeroCleanName,
+    mostPlayedHeroWinRate,
+    overallWinRate,
+    totalKills,
+    totalDeaths,
+    totalAssists,
+    dominantRole,
+    dominantRolePct,
+    mostBuiltItemKey,
+    hoursOnHero,
+    heroWinStreak,
+    careerGamesOnHero,
+    bestHeroGame,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 10. getLegendStats
+// ---------------------------------------------------------------------------
+
+export interface LegendStats {
+  bestKdaGame: {
+    heroName: string;
+    heroCleanName: string;
+    matchId: number;
+    kda: number;
+    kills: number;
+    deaths: number;
+    assists: number;
+  } | null;
+  highestGpmGame: {
+    heroName: string;
+    heroCleanName: string;
+    gpm: number;
+  } | null;
+  longestWinStreak: number;
+}
+
+export function getLegendStats(yearMatches: Match[], heroes: Hero[]): LegendStats {
+  const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
+
+  let bestKdaGame: LegendStats["bestKdaGame"] = null;
+  const validMatches = yearMatches.filter((m) => m.duration >= 600);
+  if (validMatches.length > 0) {
+    const best = [...validMatches].sort((a, b) => {
+      const kdaA = (a.kills + a.assists) / Math.max(a.deaths, 1);
+      const kdaB = (b.kills + b.assists) / Math.max(b.deaths, 1);
+      return kdaB - kdaA;
+    })[0];
+    const hero = heroMap.get(best.hero_id);
+    bestKdaGame = {
+      heroName: hero?.localized_name ?? `Hero ${best.hero_id}`,
+      heroCleanName: hero?.name.replace("npc_dota_hero_", "") ?? "",
+      matchId: best.match_id,
+      kda: Math.round(((best.kills + best.assists) / Math.max(best.deaths, 1)) * 10) / 10,
+      kills: best.kills,
+      deaths: best.deaths,
+      assists: best.assists,
+    };
+  }
+
+  let highestGpmGame: LegendStats["highestGpmGame"] = null;
+  const withGpm = yearMatches.filter((m) => (m.gold_per_min ?? 0) > 0);
+  if (withGpm.length > 0) {
+    const best = [...withGpm].sort((a, b) => (b.gold_per_min ?? 0) - (a.gold_per_min ?? 0))[0];
+    const hero = heroMap.get(best.hero_id);
+    highestGpmGame = {
+      heroName: hero?.localized_name ?? `Hero ${best.hero_id}`,
+      heroCleanName: hero?.name.replace("npc_dota_hero_", "") ?? "",
+      gpm: best.gold_per_min,
+    };
+  }
+
+  let longestWinStreak = 0;
+  if (yearMatches.length > 0) {
+    const sorted = [...yearMatches].sort((a, b) => a.match_id - b.match_id);
+    let current = 0;
+    for (const m of sorted) {
+      if (isWin(m)) {
+        current++;
+        if (current > longestWinStreak) longestWinStreak = current;
+      } else {
+        current = 0;
+      }
+    }
+  }
+
+  return { bestKdaGame, highestGpmGame, longestWinStreak };
+}
+
+// ---------------------------------------------------------------------------
+// 11. getRankInfo
+// ---------------------------------------------------------------------------
+
+export interface RankInfo {
+  medalName: string;
+  stars: number;
+  starsLabel: string;
+  fullRank: string;
+  medalNumber: number;
+  percentileLabel: string;
+  isImmortal: boolean;
+  leaderboardRank: number | null;
+}
+
+const MEDAL_NAMES = ['', 'Herald', 'Guardian', 'Crusader', 'Archon', 'Legend', 'Ancient', 'Divine', 'Immortal'];
+const STAR_LABELS = ['', 'I', 'II', 'III', 'IV', 'V'];
+const PERCENTILE_LABELS: Record<number, string> = {
+  1: 'Top 92% of all players',
+  2: 'Top 80% of all players',
+  3: 'Top 63% of all players',
+  4: 'Top 42% of all players',
+  5: 'Top 24% of all players',
+  6: 'Top 10% of all players',
+  7: 'Top 3% of all players',
+  8: 'Top 1% of all players',
+};
+
+export function getRankInfo(rankTier: number | null, leaderboardRank: number | null): RankInfo {
+  if (!rankTier || rankTier === 0) {
+    return {
+      medalName: 'Hidden',
+      stars: 0,
+      starsLabel: '',
+      fullRank: 'Rank Hidden',
+      medalNumber: 0,
+      percentileLabel: 'Rank not public',
+      isImmortal: false,
+      leaderboardRank: null,
+    };
+  }
+
+  const medal = Math.floor(rankTier / 10);
+  const stars = rankTier % 10;
+  const medalName = MEDAL_NAMES[medal] ?? 'Unknown';
+  const starsLabel = stars > 0 ? (STAR_LABELS[stars] ?? '') : '';
+  const isImmortal = medal === 8;
+  const fullRank = starsLabel ? `${medalName} ${starsLabel}` : medalName;
+
+  return {
+    medalName,
+    stars,
+    starsLabel,
+    fullRank,
+    medalNumber: medal,
+    percentileLabel: PERCENTILE_LABELS[medal] ?? '',
+    isImmortal,
+    leaderboardRank,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 12. getPlayStyleStats
+// ---------------------------------------------------------------------------
+
+export interface PlayStyleStats {
+  avgGpm: number;
+  avgXpm: number;
+  avgLastHits: number;
+  couriersKilled: number;
+  stunsApplied: number;
+  towerKills: number;
+  wardsPlaced: number;
+  tpScrollsUsed: number;
+  actionsPerMin: number;
+  heroHealing: number;
+  fighting: number;
+  farming: number;
+  supporting: number;
+  pushing: number;
+  utility: number;
+}
+
+export function getPlayStyleStats(
+  totals: PlayerTotal[],
+  yearMatches: Match[],
+): PlayStyleStats {
+  const totalsMap = new Map(totals.map((t) => [t.field, t]));
+
+  const avg = (field: string): number => {
+    const t = totalsMap.get(field);
+    return t && t.n > 0 ? t.sum / t.n : 0;
+  };
+
+  const sum = (field: string): number => totalsMap.get(field)?.sum ?? 0;
+
+  const clamp = (v: number) => Math.min(100, Math.max(5, Math.round(v)));
+
+  const avgGpm = Math.round(avg("gold_per_min"));
+  const avgXpm = Math.round(avg("xp_per_min"));
+  const avgLastHits = Math.round(avg("last_hits"));
+  const couriersKilled = Math.round(sum("courier_kills"));
+  const stunsApplied = Math.round(sum("stuns"));
+  const towerKills = Math.round(sum("tower_kills"));
+  const wardsPlaced = Math.round(sum("purchase_ward_observer"));
+  const tpScrollsUsed = Math.round(sum("purchase_tpscroll"));
+  const actionsPerMin = Math.round(avg("actions_per_min"));
+  const heroHealing = Math.round(sum("hero_healing"));
+
+  const fighting   = clamp((avg("kills")         / 12)   * 100);
+  const farming    = clamp((avg("gold_per_min")   / 800)  * 100);
+  const supporting = clamp((avg("assists")        / 20)   * 100);
+  const pushing    = clamp((avg("tower_damage")   / 3000) * 100);
+  const utility    = clamp((avg("stuns")          / 60)   * 100);
+
+  return {
+    avgGpm,
+    avgXpm,
+    avgLastHits,
+    couriersKilled,
+    stunsApplied,
+    towerKills,
+    wardsPlaced,
+    tpScrollsUsed,
+    actionsPerMin,
+    heroHealing,
+    fighting,
+    farming,
+    supporting,
+    pushing,
+    utility,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 13. getYearInNumbers
+// ---------------------------------------------------------------------------
+
+export interface YearInNumbers {
+  totalGames: number;
+  totalHours: number;
+  avgGameLength: string;
+  bestWinStreak: number;
+  worstLoseStreak: number;
+  mostPlayedDay: string;
+  winRateShort: number;
+  winRateMid: number;
+  winRateLong: number;
+  uniqueHeroes: number;
+}
+
+export function getYearInNumbers(yearMatches: Match[]): YearInNumbers {
+  const totalGames = yearMatches.length;
+  const totalSeconds = yearMatches.reduce((s, m) => s + m.duration, 0);
+  const totalHours = Math.round((totalSeconds / 3600) * 10) / 10;
+  const avgSeconds = totalGames > 0 ? totalSeconds / totalGames : 0;
+  const avgGameLength = `${Math.round(avgSeconds / 60)}m`;
+
+  const sorted = [...yearMatches].sort((a, b) => a.match_id - b.match_id);
+  let bestWinStreak = 0;
+  let worstLoseStreak = 0;
+  let runWin = 0;
+  let runLose = 0;
+  for (const m of sorted) {
+    if (isWin(m)) { runWin++; runLose = 0; }
+    else { runLose++; runWin = 0; }
+    if (runWin > bestWinStreak) bestWinStreak = runWin;
+    if (runLose > worstLoseStreak) worstLoseStreak = runLose;
+  }
+
+  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayCounts: Record<number, number> = {};
+  for (const m of yearMatches) {
+    const day = new Date(m.start_time * 1000).getDay();
+    dayCounts[day] = (dayCounts[day] ?? 0) + 1;
+  }
+  const topDayEntry = Object.entries(dayCounts).sort(([, a], [, b]) => b - a)[0];
+  const mostPlayedDay = topDayEntry ? (DAY_NAMES[Number(topDayEntry[0])] ?? "Unknown") : "Unknown";
+
+  const winPct = (arr: Match[]): number => {
+    if (arr.length === 0) return 0;
+    return Math.round((arr.filter(isWin).length / arr.length) * 1000) / 10;
+  };
+
+  return {
+    totalGames,
+    totalHours,
+    avgGameLength,
+    bestWinStreak,
+    worstLoseStreak,
+    mostPlayedDay,
+    winRateShort: winPct(yearMatches.filter((m) => m.duration < 1800)),
+    winRateMid: winPct(yearMatches.filter((m) => m.duration >= 1800 && m.duration <= 2700)),
+    winRateLong: winPct(yearMatches.filter((m) => m.duration > 2700)),
+    uniqueHeroes: new Set(yearMatches.map((m) => m.hero_id)).size,
   };
 }

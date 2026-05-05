@@ -1,38 +1,71 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import type { LegendStats } from "@/lib/transforms";
 
 interface Props {
-  totalHours: number;
-  totalGames: number;
+  legendStats: LegendStats;
 }
 
 const shareUrl = () =>
   typeof window !== "undefined" ? window.location.href : "";
 
-export default function Card2Hours({ totalHours, totalGames }: Props) {
-  const digits = Math.floor(totalHours).toString().length;
-  const numFontSize = digits <= 3 ? 140 : digits === 4 ? 96 : 72;
+function LegendBlock({
+  label,
+  headline,
+  sub,
+  accent,
+}: {
+  label: string;
+  headline: string;
+  sub: string;
+  accent: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "14px 0",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <p
+        style={{
+          color: "rgba(255,255,255,0.35)",
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: "0.2em",
+          textTransform: "uppercase",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          color: accent,
+          fontSize: 32,
+          fontWeight: 900,
+          lineHeight: 1,
+          letterSpacing: "-0.03em",
+          marginBottom: 3,
+        }}
+      >
+        {headline}
+      </p>
+      <p
+        style={{
+          color: "rgba(255,255,255,0.45)",
+          fontSize: 12,
+          fontWeight: 500,
+        }}
+      >
+        {sub}
+      </p>
+    </div>
+  );
+}
 
-  const [displayNum, setDisplayNum] = useState(0);
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    if (hasAnimated.current) return;
-    hasAnimated.current = true;
-    const duration = 1500;
-    const start = performance.now();
-    const target = Math.floor(totalHours);
-
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayNum(Math.floor(eased * target));
-      if (progress < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }, [totalHours]);
+export default function Card2Hours({ legendStats }: Props) {
+  const { bestKdaGame, highestGpmGame, longestWinStreak } = legendStats;
 
   return (
     <div
@@ -54,29 +87,28 @@ export default function Card2Hours({ totalHours, totalGames }: Props) {
           inset: 0,
           width: "100%",
           height: "100%",
-          opacity: 0.06,
+          opacity: 0.05,
           pointerEvents: "none",
           zIndex: 0,
         }}
         viewBox="0 0 400 600"
       >
         <circle cx="200" cy="300" r="80"  fill="none" stroke="white" strokeWidth="1" />
-        <circle cx="200" cy="300" r="140" fill="none" stroke="white" strokeWidth="1" />
-        <circle cx="200" cy="300" r="200" fill="none" stroke="white" strokeWidth="1" />
-        <circle cx="200" cy="300" r="260" fill="none" stroke="white" strokeWidth="1" />
-        <circle cx="200" cy="300" r="320" fill="none" stroke="white" strokeWidth="1" />
+        <circle cx="200" cy="300" r="150" fill="none" stroke="white" strokeWidth="1" />
+        <circle cx="200" cy="300" r="220" fill="none" stroke="white" strokeWidth="1" />
+        <circle cx="200" cy="300" r="300" fill="none" stroke="white" strokeWidth="1" />
       </svg>
 
-      {/* 2026 rotated left edge */}
+      {/* Year label */}
       <span
         style={{
           position: "absolute",
           right: 12,
           top: "25%",
-          transform: "translateY(-50%) rotate(-90deg)",
+          transform: "translateY(-50%) rotate(90deg)",
           fontSize: 11,
           letterSpacing: "0.3em",
-          opacity: 0.4,
+          opacity: 0.35,
           textTransform: "uppercase",
           color: "white",
           pointerEvents: "none",
@@ -86,24 +118,6 @@ export default function Card2Hours({ totalHours, totalGames }: Props) {
       >
         2026
       </span>
-
-      {/* SVG scribble */}
-      <svg
-        viewBox="0 0 300 80"
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          width: "100%",
-          opacity: 0.12,
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      >
-        <path d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45" fill="none" stroke="white" strokeWidth="2" />
-        <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
-      </svg>
 
       {/* Share button */}
       <button
@@ -150,18 +164,18 @@ export default function Card2Hours({ totalHours, totalGames }: Props) {
       {/* Top label */}
       <p
         style={{
-          color: "rgba(255,255,255,0.5)",
+          color: "rgba(255,255,255,0.4)",
           fontSize: 10,
           fontWeight: 700,
           letterSpacing: "0.25em",
           textTransform: "uppercase",
-          marginBottom: 12,
+          marginBottom: 4,
           flexShrink: 0,
           position: "relative",
           zIndex: 1,
         }}
       >
-        You played for
+        All-time records
       </p>
 
       {/* Main content */}
@@ -171,89 +185,51 @@ export default function Card2Hours({ totalHours, totalGames }: Props) {
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          overflow: "hidden",
           position: "relative",
           zIndex: 1,
         }}
       >
-        {/* Outlined hours number — shadow + stroke layers */}
-        <div style={{ position: "relative", overflow: "hidden", width: "100%", maxWidth: "100%" }}>
-          {/* Shadow layer behind */}
-          <p
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              color: "rgba(255,77,48,0.15)",
-              fontSize: numFontSize,
-              fontWeight: 900,
-              width: "100%",
-              overflow: "hidden",
-              lineHeight: 0.9,
-              letterSpacing: "-0.04em",
-              textTransform: "uppercase",
-              pointerEvents: "none",
-              userSelect: "none",
-            }}
-          >
-            {displayNum}
+        {/* Best KDA game — inline so we can add the hero thumbnail */}
+        <div style={{ padding: "14px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>
+            Best KDA game
           </p>
-          {/* Outlined stroke layer */}
-          <p
-            style={{
-              color: "transparent",
-              WebkitTextStroke: "3px #FF4D30",
-              fontSize: numFontSize,
-              fontWeight: 900,
-              lineHeight: 0.9,
-              letterSpacing: "-0.04em",
-              textTransform: "uppercase",
-              position: "relative",
-            }}
-          >
-            {displayNum}
+          <p style={{ color: "#6366F1", fontSize: 32, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em", marginBottom: 6 }}>
+            {bestKdaGame ? `${bestKdaGame.kda}` : "—"}
           </p>
+          {bestKdaGame ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              {bestKdaGame.heroCleanName && (
+                <img
+                  src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/${bestKdaGame.heroCleanName}.png`}
+                  alt={bestKdaGame.heroName}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  style={{ width: 36, height: 36, borderRadius: 4, objectFit: "cover", objectPosition: "center 15%", flexShrink: 0 }}
+                />
+              )}
+              <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: 500 }}>
+                {bestKdaGame.kills}/{bestKdaGame.deaths}/{bestKdaGame.assists} on {bestKdaGame.heroName}
+              </p>
+            </div>
+          ) : (
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: 500 }}>No data</p>
+          )}
         </div>
-
-        <p
-          style={{
-            color: "rgba(255,255,255,0.5)",
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            marginBottom: 16,
-          }}
-        >
-          HOURS
-        </p>
-
-        <div
-          style={{
-            width: 40,
-            height: 1,
-            backgroundColor: "rgba(255,255,255,0.3)",
-            marginBottom: 16,
-          }}
+        <LegendBlock
+          label="Peak GPM"
+          headline={highestGpmGame ? `${highestGpmGame.gpm}` : "—"}
+          sub={highestGpmGame ? `gold/min on ${highestGpmGame.heroName}` : "No data"}
+          accent="#F59E0B"
         />
-
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 15, fontStyle: "italic" }}>
-          of your life, gone forever
-        </p>
+        <LegendBlock
+          label="Longest win streak"
+          headline={longestWinStreak > 0 ? `${longestWinStreak}` : "—"}
+          sub={longestWinStreak > 0 ? `wins in a row` : "No data"}
+          accent="#22C55E"
+        />
       </div>
 
-      {/* Games count */}
-      <div style={{ flexShrink: 0, marginTop: 16, position: "relative", zIndex: 1 }}>
-        <p style={{ color: "white", fontSize: 28, fontWeight: 800, lineHeight: 1, marginBottom: 4 }}>
-          {totalGames.toLocaleString()}
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.15em" }}>
-          Matches played
-        </p>
-      </div>
-
-      {/* Spacer for share button + DOTA WRAPPED */}
+      {/* Spacer for share button + branding */}
       <div style={{ height: 88, flexShrink: 0 }} />
     </div>
   );

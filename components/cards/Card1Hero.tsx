@@ -1,15 +1,14 @@
 "use client";
 
-import type { ProfileData, ItemConstant, BestHeroMatchData, Match } from "@/lib/opendota";
-import type { HeroStatEntry, BestHeroMatch } from "@/lib/transforms";
+import type { ProfileData, ItemConstant, BestHeroMatchData } from "@/lib/opendota";
+import type { HeroStatEntry, BestGame } from "@/lib/transforms";
 
 interface Props {
   profile: ProfileData;
   topHero: HeroStatEntry | undefined;
-  bestHeroMatch: BestHeroMatch | null;
+  bestHeroGame: BestGame | null;
   bestHeroMatchDetails: BestHeroMatchData | null;
   itemConstants: Record<string, ItemConstant> | null;
-  matches: Match[];
 }
 
 const DOTA_CDN = "https://cdn.cloudflare.steamstatic.com";
@@ -25,10 +24,9 @@ const BRAND: React.CSSProperties = {
 export default function Card1Hero({
   profile,
   topHero,
-  bestHeroMatch,
+  bestHeroGame,
   bestHeroMatchDetails,
   itemConstants,
-  matches,
 }: Props) {
   if (!topHero) {
     return (
@@ -47,21 +45,17 @@ export default function Card1Hero({
           padding: "0 32px 88px",
         }}
       >
-        {/* SVG scribble */}
         <svg viewBox="0 0 300 80" style={{ position: "absolute", bottom: 0, left: 0, right: 0, width: "100%", opacity: 0.1, pointerEvents: "none" }}>
           <path d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45" fill="none" stroke="white" strokeWidth="2" />
           <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
         </svg>
-        {/* Branding */}
         <div style={{ position: "absolute", top: 20, left: 22, right: 22, display: "flex", justifyContent: "space-between" }}>
           <span style={{ ...BRAND, textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>Dota Wrapped</span>
           <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 800 }}>2026</span>
         </div>
-        {/* DOTA WRAPPED bottom */}
         <p style={{ position: "absolute", bottom: 16, left: 22, fontSize: 10, letterSpacing: "0.15em", opacity: 0.35, color: "white", textTransform: "uppercase", margin: 0 }}>
           Dota Wrapped
         </p>
-        {/* Content */}
         <p style={{ color: "rgba(255,255,255,0.08)", fontSize: 180, fontWeight: 900, lineHeight: 1, margin: 0, userSelect: "none" }}>?</p>
         <p style={{ color: "white", fontSize: 18, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.25em", textAlign: "center", margin: 0 }}>
           No Hero Data
@@ -79,36 +73,38 @@ export default function Card1Hero({
   const isGoodWr = parseFloat(topHero.winRate) >= 50;
   const wr = parseFloat(topHero.winRate);
 
-  console.log('matches count:', matches?.length);
-  console.log('topHero.hero_id:', topHero?.hero_id);
-  console.log('filtered hero matches:', matches?.filter((m) => m.hero_id === topHero?.hero_id).length);
+  const bestGameDurationMin = bestHeroGame
+    ? `${Math.floor(bestHeroGame.duration / 60)}m`
+    : null;
 
-  // Fallback: compute best game directly from matches if prop is null
-  const bestGame: BestHeroMatch | null = bestHeroMatch ?? (() => {
-    if (!topHero || matches.length === 0) return null;
-    const heroMatches = matches.filter((m) => m.hero_id === topHero.hero_id);
-    if (heroMatches.length === 0) return null;
-    const best = [...heroMatches].sort((a, b) => b.kills - a.kills)[0];
-    const win =
-      (best.radiant_win && best.player_slot < 128) ||
-      (!best.radiant_win && best.player_slot >= 128);
-    const m = Math.floor(best.duration / 60);
-    const s = best.duration % 60;
-    return {
-      kills: best.kills,
-      deaths: best.deaths,
-      assists: best.assists,
-      duration: `${m}m ${String(s).padStart(2, "0")}s`,
-      isWin: win,
-      matchId: best.match_id,
-    };
-  })();
+  const isParsed = bestHeroMatchDetails?.isParsed ?? false;
 
   // Build item lookup map
   const itemById = new Map<number, { key: string; dname: string }>();
   for (const [key, item] of Object.entries(itemConstants ?? {})) {
     itemById.set(item.id, { key, dname: item.dname });
   }
+
+  // Stats row columns — parsed: GOLD/MIN + CS + GAMES, unparsed: GAMES only
+  const statCols: { value: string; label: string }[] = isParsed
+    ? [
+        {
+          value:
+            bestHeroMatchDetails!.gpm != null && bestHeroMatchDetails!.gpm > 0
+              ? String(bestHeroMatchDetails!.gpm)
+              : "—",
+          label: "GOLD/MIN",
+        },
+        {
+          value:
+            bestHeroMatchDetails!.lastHits != null
+              ? String(bestHeroMatchDetails!.lastHits)
+              : "—",
+          label: "CS",
+        },
+        { value: topHero.games.toLocaleString(), label: "GAMES" },
+      ]
+    : [{ value: topHero.games.toLocaleString(), label: "GAMES" }];
 
   return (
     <div
@@ -124,14 +120,14 @@ export default function Card1Hero({
         padding: "20px 22px 24px",
       }}
     >
-      {/* Hero portrait — top 45% section */}
+      {/* 1. Hero portrait — top ~40% */}
       <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          height: "50%",
+          height: "40%",
           background: "linear-gradient(160deg, #1a0a2e, #0d0d1a)",
           overflow: "hidden",
         }}
@@ -151,13 +147,13 @@ export default function Card1Hero({
         )}
       </div>
 
-      {/* Gradient overlay — bottom 55% */}
+      {/* Gradient overlay */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(to top,#000000 0%,#000000 45%,rgba(0,0,0,0.7) 58%,transparent 72%)",
+            "linear-gradient(to top,#000000 0%,#000000 60%,rgba(0,0,0,0.7) 70%,transparent 80%)",
           pointerEvents: "none",
         }}
       />
@@ -171,7 +167,7 @@ export default function Card1Hero({
       {/* Bottom stats */}
       <div style={{ position: "relative" }}>
 
-        {/* Hero label + name */}
+        {/* 2. Hero label + name */}
         <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 4 }}>
           Your Most Played Hero
         </p>
@@ -179,8 +175,8 @@ export default function Card1Hero({
           {topHero.heroName}
         </h2>
 
-        {/* ── KDA row ── */}
-        {bestGame && (
+        {/* 3. Best Game section — hidden entirely if bestHeroGame is null */}
+        {bestHeroGame && (
           <div style={{ marginBottom: 10 }}>
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 6 }}>
               Best Game
@@ -189,17 +185,17 @@ export default function Card1Hero({
               {/* K / D / A */}
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "#B9FF33", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestGame.kills}</p>
+                  <p style={{ color: "#B9FF33", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestHeroGame.kills}</p>
                   <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Kills</p>
                 </div>
                 <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, paddingBottom: 10 }}>/</span>
                 <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "#FF4D30", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestGame.deaths}</p>
+                  <p style={{ color: "#FF4D30", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestHeroGame.deaths}</p>
                   <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Deaths</p>
                 </div>
                 <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, paddingBottom: 10 }}>/</span>
                 <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestGame.assists}</p>
+                  <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestHeroGame.assists}</p>
                   <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Assists</p>
                 </div>
               </div>
@@ -207,77 +203,73 @@ export default function Card1Hero({
               {/* WIN/LOSS + duration pushed right */}
               <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                 <span style={{
-                  backgroundColor: bestGame.isWin ? "#B9FF33" : "#FF4D30",
-                  color: bestGame.isWin ? "#000" : "#fff",
+                  backgroundColor: bestHeroGame.isWin ? "#B9FF33" : "#FF4D30",
+                  color: bestHeroGame.isWin ? "#000" : "#fff",
                   fontSize: 9, fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase",
                   padding: "2px 8px", borderRadius: 10,
                 }}>
-                  {bestGame.isWin ? "WIN" : "LOSS"}
+                  {bestHeroGame.isWin ? "WIN" : "LOSS"}
                 </span>
                 <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 600 }}>
-                  {bestGame.duration.split(" ")[0]}
+                  {bestGameDurationMin}
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Stats grid (GPM / CS / Duration / Games) ── */}
+        {/* 4. Stats row */}
         <div style={{ display: "flex", gap: 0, marginBottom: 10, borderTop: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingTop: 8, paddingBottom: 8 }}>
-          {[
-            {
-              value: bestHeroMatchDetails?.isParsed && bestHeroMatchDetails.gpm !== null
-                ? String(bestHeroMatchDetails.gpm) : "—",
-              label: "GOLD/MIN",
-            },
-            {
-              value: bestHeroMatchDetails?.isParsed && bestHeroMatchDetails.lastHits !== null
-                ? String(bestHeroMatchDetails.lastHits) : "—",
-              label: "CS",
-            },
-            {
-              value: bestGame ? bestGame.duration.split(" ")[0] : "—",
-              label: "DURATION",
-            },
-            {
-              value: topHero.games.toLocaleString(),
-              label: "GAMES",
-            },
-          ].map((stat, i) => (
-            <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.08)" : undefined }}>
+          {statCols.map((stat, i) => (
+            <div key={stat.label} style={{ flex: 1, textAlign: "center", borderRight: i < statCols.length - 1 ? "1px solid rgba(255,255,255,0.08)" : undefined }}>
               <p style={{ color: "white", fontSize: 15, fontWeight: 800, lineHeight: 1, marginBottom: 3 }}>{stat.value}</p>
               <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.1em" }}>{stat.label}</p>
             </div>
           ))}
         </div>
 
-        {/* ── Items grid (3×2) ── */}
-        {bestHeroMatchDetails?.isParsed && bestHeroMatchDetails.items.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 5, marginBottom: 10 }}>
-            {bestHeroMatchDetails.items.slice(0, 6).map((itemId: number, idx: number) => {
-              const entry = itemById.get(itemId);
+        {/* 5. Items grid — always rendered, placeholders when unparsed */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, marginBottom: 10 }}>
+          {Array.from({ length: 6 }).map((_, idx) => {
+            if (isParsed) {
+              const itemId = bestHeroMatchDetails!.items[idx];
+              const entry = itemId != null && itemId !== 0 ? itemById.get(itemId) : undefined;
               return (
-                <div key={idx} title={entry?.dname}
-                  style={{ height: 34, borderRadius: 6, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  {entry && (
+                <div key={idx} style={{ position: "relative", width: "100%", paddingTop: "66%", height: 0 }}>
+                  {entry ? (
                     <img
                       src={`${DOTA_CDN}/apps/dota2/images/dota_react/items/${entry.key}.png`}
                       alt={entry.dname}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      title={entry.dname}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 4 }}
                     />
+                  ) : (
+                    <div style={{ position: "absolute", inset: 0, backgroundColor: "#1a1a2e", borderRadius: 4 }} />
                   )}
                 </div>
               );
-            })}
-          </div>
-        ) : bestHeroMatchDetails && !bestHeroMatchDetails.isParsed ? (
-          <p style={{ color: "rgba(255,255,255,0.28)", fontSize: 10, fontStyle: "italic", marginBottom: 10 }}>
-            Match not parsed — item data unavailable
-          </p>
-        ) : null}
+            }
+            // Unparsed placeholder
+            return (
+              <div key={idx} style={{ position: "relative", width: "100%", paddingTop: "66%", height: 0 }}>
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundColor: "#1a1a2e",
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: 0.3,
+                }}>
+                  <span style={{ fontSize: 12, lineHeight: 1 }}>🔒</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-        {/* ── Win rate bar ── */}
+        {/* 6. WIN RATE ON THIS HERO bar */}
         <div style={{ marginBottom: 4 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
             <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 8, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>
@@ -292,7 +284,7 @@ export default function Card1Hero({
           </div>
         </div>
 
-        {/* ── Lifetime W/L on this hero ── */}
+        {/* 7. LIFETIME ON THIS HERO — W/L */}
         <div style={{ marginTop: 10, marginBottom: 6 }}>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", fontVariant: "small-caps", marginBottom: 6 }}>
             Lifetime on This Hero
@@ -313,6 +305,7 @@ export default function Card1Hero({
           </div>
         </div>
 
+        {/* 8. DOTAWRAPPED.GG watermark */}
         <p style={{ ...BRAND, textAlign: "center", color: "rgba(255,255,255,0.22)", marginTop: 4 }}>
           dotawrapped.gg
         </p>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 const CSS = `
   * { box-sizing: border-box; }
@@ -143,6 +143,7 @@ export default function HomePage() {
   const router = useRouter();
   const [accountId, setAccountId] = useState("");
   const [error, setError] = useState("");
+  const shouldReduceMotion = useReducedMotion() ?? false;
 
   function handleSubmit() {
     const trimmed = accountId.trim();
@@ -211,29 +212,29 @@ export default function HomePage() {
       {/* ── LEFT COLUMN ── */}
       <div className="lp-left" style={{ position: "relative", zIndex: 1 }}>
         <motion.p className="lp-dota"
-          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
           DOTA
         </motion.p>
         <motion.p className="lp-wrapped"
-          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
           WRAPPED
         </motion.p>
         <motion.p className="lp-year"
-          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}>
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}>
           2026
         </motion.p>
         <motion.p className="lp-sub"
-          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}>
           Your Dota 2 year in review.
         </motion.p>
 
         <motion.div className="lp-input-row"
-          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}>
           <input
             className="lp-input"
             type="text"
@@ -294,9 +295,9 @@ export default function HomePage() {
               background: "linear-gradient(160deg,#1a0a2e,#0d0d1a)",
               borderRadius: 16,
             }}
-            initial={{ opacity: 0, rotate: -12, x: -60 }}
+            initial={shouldReduceMotion ? { opacity: 0.6 } : { opacity: 0, rotate: -12, x: -60 }}
             animate={{ opacity: 0.6, rotate: -8, x: -40 }}
-            transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
           />
 
           {/* Card 2 — middle */}
@@ -310,9 +311,9 @@ export default function HomePage() {
               background: "linear-gradient(160deg,#1a1a0a,#0d1117)",
               borderRadius: 16,
             }}
-            initial={{ opacity: 0, rotate: 8, x: 40 }}
+            initial={shouldReduceMotion ? { opacity: 0.8 } : { opacity: 0, rotate: 8, x: 40 }}
             animate={{ opacity: 0.8, rotate: 4, x: 20 }}
-            transition={{ duration: 0.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
           />
 
           {/* Card 3 — front */}
@@ -332,9 +333,9 @@ export default function HomePage() {
               justifyContent: "space-between",
               padding: "20px 20px 24px",
             }}
-            initial={{ opacity: 0, y: 40 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
             {/* Top branding */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>

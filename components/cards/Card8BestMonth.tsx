@@ -1,78 +1,52 @@
 "use client";
 
-import type { Match, PlayerHeroStats } from "@/lib/opendota";
+import type { TempoStats } from "@/lib/transforms";
 
 interface Props {
-  matches: Match[];
-  playerHeroes: PlayerHeroStats[];
+  tempoStats: TempoStats;
 }
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-const MONTH_COPY: Partial<Record<string, string>> = {
-  January: "New year, new losing streak.",
-  March: "Something in the air.",
-  December: "Holiday grind.",
-};
-
-const isWin = (m: Match) =>
-  (m.radiant_win && m.player_slot < 128) ||
-  (!m.radiant_win && m.player_slot >= 128);
 
 const shareUrl = () =>
   typeof window !== "undefined" ? window.location.href : "";
 
-export default function Card8BestMonth({ matches, playerHeroes }: Props) {
-  const buckets: Record<
-    string,
-    { wins: number; total: number; year: number; monthIdx: number }
-  > = {};
+function StatRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        padding: "10px 0",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <span
+        style={{
+          color: "rgba(255,255,255,0.4)",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          color: accent ?? "white",
+          fontSize: 18,
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
-  for (const m of matches) {
-    const d = new Date(m.start_time * 1000);
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    if (!buckets[key])
-      buckets[key] = {
-        wins: 0,
-        total: 0,
-        year: d.getUTCFullYear(),
-        monthIdx: d.getUTCMonth(),
-      };
-    buckets[key].total++;
-    if (isWin(m)) buckets[key].wins++;
-  }
-
-  const best =
-    Object.values(buckets)
-      .filter((b) => b.total >= 1)
-      .sort((a, b) => b.wins / b.total - a.wins / a.total)[0] ?? null;
-
-  const fallbackTs =
-    !best && playerHeroes.length > 0
-      ? Math.max(...playerHeroes.map((h) => h.last_played))
-      : null;
-  const fallbackDate = fallbackTs ? new Date(fallbackTs * 1000) : null;
-  const noData = !best && !fallbackDate;
-
-  const monthIdx = best
-    ? best.monthIdx
-    : fallbackDate
-      ? fallbackDate.getUTCMonth()
-      : 0;
-  const monthName = best
-    ? MONTH_NAMES[best.monthIdx]
-    : fallbackDate
-      ? MONTH_NAMES[fallbackDate.getUTCMonth()]
-      : "—";
-  const year =
-    best?.year ?? fallbackDate?.getUTCFullYear() ?? new Date().getUTCFullYear();
-  const winRate = best ? ((best.wins / best.total) * 100).toFixed(1) : null;
-  const games = best?.total ?? null;
-  const copy = (best && MONTH_COPY[monthName]) ?? "You were in the zone.";
-  const monthNum = String(monthIdx + 1).padStart(2, "0");
+export default function Card8BestMonth({ tempoStats }: Props) {
+  const { fastestWin, longestGame, avgDuration, totalHoursThisYear } = tempoStats;
 
   return (
     <div
@@ -87,39 +61,37 @@ export default function Card8BestMonth({ matches, playerHeroes }: Props) {
         padding: "28px 28px 0 28px",
       }}
     >
-      {/* Large faded month number behind everything */}
-      {!noData && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            fontSize: 180,
-            fontWeight: 900,
-            color: "white",
-            opacity: 0.04,
-            pointerEvents: "none",
-            userSelect: "none",
-            lineHeight: 1,
-            whiteSpace: "nowrap",
-            zIndex: 0,
-          }}
-        >
-          {monthNum}
-        </div>
-      )}
+      {/* Grid lines background */}
+      <svg
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          opacity: 0.04,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+        viewBox="0 0 400 600"
+      >
+        {[80, 160, 240, 320, 400, 480].map((y) => (
+          <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="white" strokeWidth="1" />
+        ))}
+        {[80, 160, 240, 320].map((x) => (
+          <line key={x} x1={x} y1="0" x2={x} y2="600" stroke="white" strokeWidth="1" />
+        ))}
+      </svg>
 
-      {/* 2026 rotated left edge */}
+      {/* Year label rotated right edge */}
       <span
         style={{
           position: "absolute",
-          left: 16,
-          top: "50%",
-          transform: "translateY(-50%) rotate(-90deg)",
+          right: 12,
+          top: "25%",
+          transform: "translateY(-50%) rotate(90deg)",
           fontSize: 11,
           letterSpacing: "0.3em",
-          opacity: 0.4,
+          opacity: 0.35,
           textTransform: "uppercase",
           color: "white",
           pointerEvents: "none",
@@ -130,39 +102,9 @@ export default function Card8BestMonth({ matches, playerHeroes }: Props) {
         2026
       </span>
 
-      {/* SVG scribble */}
-      <svg
-        viewBox="0 0 300 80"
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          width: "100%",
-          opacity: 0.12,
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      >
-        <path
-          d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-        />
-        <path
-          d="M-10,70 Q80,40 140,65 Q200,85 310,55"
-          fill="none"
-          stroke="white"
-          strokeWidth="1.5"
-        />
-      </svg>
-
       {/* Share button */}
       <button
-        onClick={() =>
-          navigator.clipboard?.writeText(shareUrl()).catch(() => {})
-        }
+        onClick={() => navigator.clipboard?.writeText(shareUrl()).catch(() => {})}
         style={{
           position: "absolute",
           bottom: 44,
@@ -202,185 +144,54 @@ export default function Card8BestMonth({ matches, playerHeroes }: Props) {
         Dota Wrapped
       </p>
 
-      {/* Middle content — flex:1 fills space */}
+      {/* Main content */}
       <div
         style={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          overflow: "hidden",
           position: "relative",
           zIndex: 1,
         }}
       >
-        {noData ? (
-          <>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.25em",
-                textTransform: "uppercase",
-                marginBottom: 6,
-              }}
-            >
-              Your best
-            </p>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 18,
-                fontWeight: 700,
-                letterSpacing: "0.3em",
-                textTransform: "uppercase",
-                marginBottom: 20,
-              }}
-            >
-              MONTH
-            </p>
-            <p
-              style={{
-                color: "white",
-                fontSize: 72,
-                fontWeight: 900,
-                lineHeight: 0.9,
-                letterSpacing: "-0.04em",
-                textTransform: "uppercase",
-                marginBottom: 16,
-              }}
-            >
-              NOT ENOUGH
-              <br />
-              DATA
-            </p>
-            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
-              Play more games in 2026
-            </p>
-          </>
-        ) : (
-          <>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.25em",
-                textTransform: "uppercase",
-                marginBottom: 6,
-              }}
-            >
-              {best ? "Your best" : "Most recent"}
-            </p>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 18,
-                fontWeight: 700,
-                letterSpacing: "0.3em",
-                textTransform: "uppercase",
-                marginBottom: 12,
-              }}
-            >
-              MONTH
-            </p>
+        {/* Top label */}
+        <p
+          style={{
+            color: "rgba(255,255,255,0.4)",
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.25em",
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          Fastest win
+        </p>
 
-            <p
-              style={{
-                color: "white",
-                fontSize: monthName.length <= 3 ? 96 : monthName.length <= 5 ? 80 : monthName.length <= 7 ? 64 : 52,
-                fontWeight: 900,
-                lineHeight: 0.9,
-                letterSpacing: "-0.04em",
-                marginBottom: 6,
-                textTransform: "uppercase",
-                overflow: "hidden",
-                whiteSpace: "nowrap",
-                width: "100%",
-              }}
-            >
-              {monthName}
-            </p>
+        {/* Hero number — fastest win */}
+        <p
+          style={{
+            color: "#06B6D4",
+            fontSize: fastestWin && fastestWin.length > 7 ? 52 : 64,
+            fontWeight: 900,
+            lineHeight: 0.95,
+            letterSpacing: "-0.03em",
+            marginBottom: 28,
+          }}
+        >
+          {fastestWin ?? "—"}
+        </p>
 
-            <p
-              style={{
-                color: "rgba(255,255,255,0.4)",
-                fontSize: 24,
-                fontWeight: 700,
-                marginBottom: 20,
-              }}
-            >
-              {year}
-            </p>
-
-            {winRate !== null && games !== null && (
-              <div style={{ display: "flex", gap: 32, marginBottom: 16 }}>
-                <div>
-                  <p
-                    style={{
-                      color: "#38bdf8",
-                      fontSize: 36,
-                      fontWeight: 900,
-                      lineHeight: 1,
-                      marginBottom: 3,
-                    }}
-                  >
-                    {winRate}%
-                  </p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.4)",
-                      fontSize: 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                    }}
-                  >
-                    Win rate
-                  </p>
-                </div>
-                <div>
-                  <p
-                    style={{
-                      color: "white",
-                      fontSize: 36,
-                      fontWeight: 900,
-                      lineHeight: 1,
-                      marginBottom: 3,
-                    }}
-                  >
-                    {games}
-                  </p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.4)",
-                      fontSize: 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                    }}
-                  >
-                    Games played
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {best && (
-              <p
-                style={{
-                  color: "rgba(255,255,255,0.32)",
-                  fontSize: 13,
-                  fontStyle: "italic",
-                }}
-              >
-                &ldquo;{copy}&rdquo;
-              </p>
-            )}
-          </>
-        )}
+        {/* Divider + stat rows */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 4 }}>
+          <StatRow label="Longest game" value={longestGame ?? "—"} />
+          <StatRow label="Avg duration" value={avgDuration} />
+          <StatRow label="Hours this year" value={`${totalHoursThisYear}h`} accent="#06B6D4" />
+        </div>
       </div>
 
-      {/* Spacer for share button + DOTA WRAPPED */}
+      {/* Spacer for share button + branding */}
       <div style={{ height: 88, flexShrink: 0 }} />
     </div>
   );

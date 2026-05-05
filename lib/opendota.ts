@@ -110,6 +110,17 @@ export interface ItemConstant {
   img: string;
 }
 
+export interface PlayerItemStat {
+  games: number;
+  win: number;
+}
+
+export interface PlayerTotal {
+  field: string;
+  n: number;
+  sum: number;
+}
+
 export interface Hero {
   id: number;
   name: string;
@@ -173,6 +184,7 @@ export interface BestGameBenchmarks {
 }
 
 export interface BestGameData {
+  matchId: number;
   kills: number;
   deaths: number;
   assists: number;
@@ -203,8 +215,10 @@ export interface MatchesData {
   peers: Peer[] | null;
   quizMatches: QuizMatch[];
   itemConstants: Record<string, ItemConstant> | null;
+  playerItems: Record<string, PlayerItemStat> | null;
   bestGameData: BestGameData | null;
   bestHeroMatchDetails: BestHeroMatchData | null;
+  playerTotals: PlayerTotal[] | null;
 }
 
 /** Combined type kept for backwards compatibility. */
@@ -214,12 +228,21 @@ export interface PlayerData extends ProfileData, MatchesData {}
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} — ${url}`);
+async function fetchJson<T>(url: string): Promise<T | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    return await res.json() as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json() as Promise<T>;
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +303,7 @@ async function resolveQuizMatches(
   const quizMatches: QuizMatch[] = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
-    if (result.status !== "fulfilled") continue;
+    if (result.status !== "fulfilled" || !result.value) continue;
     const full = result.value;
     const player = full.players.find((p) => p.account_id === accountIdNum);
     if (!player) continue;
@@ -327,6 +350,7 @@ async function resolveBestGameDetails(
     (!best.radiant_win && best.player_slot >= 128);
 
   const base = {
+    matchId: best.match_id,
     kills: best.kills,
     deaths: best.deaths,
     assists: best.assists,
@@ -343,11 +367,9 @@ async function resolveBestGameDetails(
     const full = await fetchJson<FullMatchData>(
       `${BASE_URL}/matches/${best.match_id}`,
     );
-    console.log(
-      "Looking for accountId:", accountId,
-      "type:", typeof accountId,
-      "available ids:", full.players.map((p) => p.account_id),
-    );
+    if (!full) {
+      return { ...base, lastHits: null, gpm: null, isParsed: false, items: [], benchmarks: null };
+    }
     const player = full.players.find(
       (p) => String(p.account_id) === String(accountId),
     );
@@ -400,6 +422,7 @@ async function resolveBestHeroMatchDetails(
   try {
     const heroMatchesRes = await fetch(
       `${BASE_URL}/players/${accountId}/matches?hero_id=${topHeroId}&limit=20&significant=1`,
+      { next: { revalidate: 3600 } },
     );
     heroMatches = heroMatchesRes.ok ? (await heroMatchesRes.json() as Match[]) : [];
   } catch {
@@ -418,6 +441,7 @@ async function resolveBestHeroMatchDetails(
     const full = await fetchJson<FullMatchData>(
       `${BASE_URL}/matches/${bestMatch.match_id}`,
     );
+    if (!full) return { gpm: null, lastHits: null, isParsed: false, items: [] };
     const player = full.players.find(
       (p) => String(p.account_id) === String(accountId),
     );
@@ -485,18 +509,20 @@ export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
 export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
   return unstable_cache(
     async () => {
-      const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult, heroListResult] =
+      const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult, heroListResult, playerItemsResult, playerTotalsResult] =
         await Promise.allSettled([
           fetchJson<PlayerHeroStats[]>(
             `${BASE_URL}/players/${accountId}/heroes`,
           ),
           fetchJson<Match[]>(
-            `${BASE_URL}/players/${accountId}/matches?limit=500&date=365`,
+            `${BASE_URL}/players/${accountId}/matches?limit=100&date=365`,
           ),
           fetchJson<Match[]>(`${BASE_URL}/players/${accountId}/recentMatches`),
           fetchJson<Peer[]>(`${BASE_URL}/players/${accountId}/peers`),
           fetchJson<Record<string, ItemConstant>>(`${BASE_URL}/constants/items`),
           fetchJson<Hero[]>(`${BASE_URL}/heroes`),
+          fetchJson<Record<string, PlayerItemStat>>(`${BASE_URL}/players/${accountId}/items`),
+          fetchJson<PlayerTotal[]>(`${BASE_URL}/players/${accountId}/totals`),
         ]);
 
       const recentMatches =
@@ -528,8 +554,10 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
           itemConstantsResult.status === "fulfilled"
             ? itemConstantsResult.value
             : null,
+        playerItems: playerItemsResult.status === "fulfilled" ? playerItemsResult.value : null,
         bestGameData,
         bestHeroMatchDetails,
+        playerTotals: playerTotalsResult.status === "fulfilled" ? playerTotalsResult.value : null,
       };
     },
     [`player-matches-${accountId}`],

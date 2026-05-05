@@ -64,9 +64,6 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
     heroCleanName, heroName, duration, isWin, isParsed, items, benchmarks,
   } = bestGame;
 
-  console.log('bestGame isParsed:', bestGame?.isParsed);
-  console.log('benchmarks:', JSON.stringify(bestGame?.benchmarks));
-
   // Pre-compute benchmark display items
   type BenchRow = { key: string; label: string; name: string; data: { raw: number; pct: number } };
   const benchRows: BenchRow[] = (
@@ -308,13 +305,17 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
               mono: true,
             },
             {
-              value: isParsed && gpm !== null ? String(gpm) : "—",
+              value: isParsed && gpm !== null
+                ? String(gpm)
+                : <span style={{ color: "#666", fontSize: "0.85em" }}>N/A</span>,
               label: "GOLD/MIN",
               color: "white",
               mono: false,
             },
             {
-              value: isParsed && lastHits !== null ? String(lastHits) : "—",
+              value: isParsed && lastHits !== null
+                ? String(lastHits)
+                : <span style={{ color: "#666", fontSize: "0.85em" }}>N/A</span>,
               label: "CS",
               color: "white",
               mono: false,
@@ -361,6 +362,23 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
           ))}
         </div>
 
+        {/* Unparsed notice */}
+        {!isParsed && (
+          <div style={{ marginBottom: 10 }}>
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontStyle: "italic", marginBottom: 4 }}>
+              Match not parsed — item data unavailable
+            </p>
+            <a
+              href={`https://www.opendota.com/matches/${bestGame.matchId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#BFFF00", fontSize: 12, textDecoration: "none" }}
+            >
+              View on OpenDota →
+            </a>
+          </div>
+        )}
+
         {/* Inventory section */}
         {isParsed && items.length > 0 ? (
           <div
@@ -400,16 +418,6 @@ export default function Card3BestGame({ bestGame, itemConstants }: Props) {
               );
             })}
           </div>
-        ) : !isParsed ? (
-          <p
-            style={{
-              color: "rgba(255,255,255,0.3)",
-              fontSize: 11,
-              fontStyle: "italic",
-            }}
-          >
-            Match not parsed — item data unavailable
-          </p>
         ) : null}
 
         {/* ── Benchmarks section ── */}

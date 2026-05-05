@@ -1,30 +1,34 @@
-import { Suspense } from "react";
-import { fetchPlayerProfile, fetchPlayerMatches } from "@/lib/opendota";
-import WrappedClient from "@/components/WrappedClient";
-import WrappedSkeleton from "@/components/WrappedSkeleton";
-import PrivateProfileError from "@/components/PrivateProfileError";
+import type { Metadata } from "next";
+import { fetchPlayerData } from "@/lib/stratz";
+import WrappedClientFetch from "./WrappedClientFetch";
 
 interface Props {
   params: Promise<{ accountId: string }>;
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { accountId } = await params;
   try {
-    const profile = await fetchPlayerProfile(accountId);
-    const name = profile.player?.profile?.personaname ?? "A Dota Player";
+    const data = await fetchPlayerData(parseInt(accountId, 10));
+    const name = data.player?.profile?.personaname ?? "A Dota Player";
+    const avatar = data.player?.profile?.avatarfull ?? null;
     return {
       title: `${name}'s 2026 Dota Wrapped`,
       description: `${name} played Dota 2 in 2026. See their stats, top heroes and more.`,
       openGraph: {
+        type: "website",
         title: `${name}'s 2026 Dota Wrapped`,
         description: `Check out ${name}'s 2026 Dota Wrapped — top heroes, hours played and more.`,
         url: `https://dotawrapped.gg/wrapped/${accountId}`,
+        ...(avatar
+          ? { images: [{ url: avatar, width: 184, height: 184, alt: `${name}'s Steam avatar` }] }
+          : {}),
       },
       twitter: {
         card: "summary",
         title: `${name}'s 2026 Dota Wrapped`,
         description: `Check out ${name}'s 2026 Dota Wrapped`,
+        ...(avatar ? { images: [avatar] } : {}),
       },
     };
   } catch {
@@ -37,42 +41,5 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function WrappedPage({ params }: Props) {
   const { accountId } = await params;
-
-  let profile;
-  try {
-    profile = await fetchPlayerProfile(accountId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "UNKNOWN_ERROR";
-
-    if (message === "PRIVATE_PROFILE") {
-      return <PrivateProfileError />;
-    }
-
-    return (
-      <main
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ backgroundColor: "#0d1117" }}
-      >
-        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
-          <h1 className="text-xl font-semibold text-white">
-            Something went wrong
-          </h1>
-          <p className="text-sm text-white/50">
-            Could not load player data. Please try again later.
-          </p>
-          <a href="/" className="mt-2 text-sm text-blue-400 hover:underline">
-            ← Back
-          </a>
-        </div>
-      </main>
-    );
-  }
-
-  const matchesPromise = fetchPlayerMatches(accountId);
-
-  return (
-    <Suspense fallback={<WrappedSkeleton />}>
-      <WrappedClient profile={profile} matchesPromise={matchesPromise} />
-    </Suspense>
-  );
+  return <WrappedClientFetch accountId={accountId} />;
 }

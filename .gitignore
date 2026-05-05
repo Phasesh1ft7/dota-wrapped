@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Source maps and minified files
+*.map
+*.min.js
+
+*.min.js

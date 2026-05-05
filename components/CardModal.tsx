@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 interface Props {
   onClose: () => void;
@@ -11,6 +11,7 @@ interface Props {
 export default function CardModal({ onClose, children }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
+  const shouldReduceMotion = useReducedMotion() ?? false;
 
   function dismiss() {
     setVisible(false);
@@ -38,10 +39,10 @@ export default function CardModal({ onClose, children }: Props) {
       {visible && (
         <motion.div
           key="backdrop"
-          initial={{ opacity: 0 }}
+          initial={shouldReduceMotion ? {} : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          exit={shouldReduceMotion ? {} : { opacity: 0 }}
+          transition={{ duration: shouldReduceMotion ? 0 : 0.3 }}
           style={{
             position: "fixed",
             inset: 0,
@@ -49,7 +50,8 @@ export default function CardModal({ onClose, children }: Props) {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-start",
+            overflowY: "auto",   /* allows scroll on short/narrow viewports */
             zIndex: 9999,
             padding: "20px",
           }}
@@ -59,7 +61,7 @@ export default function CardModal({ onClose, children }: Props) {
           <button
             onClick={dismiss}
             style={{
-              position: "absolute",
+              position: "fixed",
               top: 20,
               right: 20,
               background: "rgba(255,255,255,0.12)",
@@ -74,30 +76,32 @@ export default function CardModal({ onClose, children }: Props) {
               alignItems: "center",
               justifyContent: "center",
               lineHeight: 1,
+              zIndex: 10000,
             }}
             aria-label="Close"
           >
             ×
           </button>
 
-          {/* Card container */}
+          {/* Card container — clamps to viewport width on small screens */}
           <motion.div
             ref={cardRef}
-            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+            initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{
-              type: "spring",
-              stiffness: 200,
-              damping: 25,
-              duration: 0.4,
-            }}
+            exit={shouldReduceMotion ? {} : { opacity: 0, scale: 0.95, y: 10 }}
+            transition={
+              shouldReduceMotion
+                ? { duration: 0 }
+                : { type: "spring", stiffness: 200, damping: 25, duration: 0.4 }
+            }
             style={{
               width: 390,
+              maxWidth: "calc(100vw - 40px)",   /* 320px fix: card can't exceed viewport */
               height: 690,
               borderRadius: 20,
               overflow: "hidden",
               flexShrink: 0,
+              marginTop: 48,    /* space for the fixed close button */
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -112,6 +116,7 @@ export default function CardModal({ onClose, children }: Props) {
             }}
             style={{
               marginTop: 20,
+              marginBottom: 20,
               padding: "12px 32px",
               backgroundColor: "white",
               color: "black",
@@ -122,6 +127,7 @@ export default function CardModal({ onClose, children }: Props) {
               letterSpacing: "0.08em",
               cursor: "pointer",
               textTransform: "uppercase",
+              flexShrink: 0,
             }}
           >
             Download PNG

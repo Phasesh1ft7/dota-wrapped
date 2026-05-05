@@ -1,261 +1,444 @@
 "use client";
 
-import type { PlayerHeroStats, Hero } from "@/lib/opendota";
+import { useState } from "react";
+import type { SignatureMoves } from "@/lib/transforms";
 
 interface Props {
-  playerHeroes: PlayerHeroStats[];
-  heroList: Hero[] | null;
+  signatureMoves: SignatureMoves;
 }
 
-const BRAND: React.CSSProperties = {
-  color: "rgba(255,255,255,0.5)",
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-};
+const DOTA_CDN = "https://cdn.cloudflare.steamstatic.com";
 
-function resolveHero(heroId: string, heroList: Hero[] | null) {
-  const data = heroList?.find((h) => h.id === parseInt(heroId));
-  return {
-    cleanName: data?.name.replace("npc_dota_hero_", "") ?? "",
-    heroName: data?.localized_name ?? "Unknown",
-  };
-}
+const shareUrl = () =>
+  typeof window !== "undefined" ? window.location.href : "";
 
-export default function Card4Matchup({ playerHeroes, heroList }: Props) {
-  const qualified = playerHeroes.filter((h) => h.against_games > 5);
+export default function Card4Matchup({ signatureMoves }: Props) {
+  const {
+    totalKills,
+    totalDeaths,
+    totalAssists,
+    topItemName,
+    topItemGames,
+    mostPlayedHeroName,
+    mostPlayedHeroCleanName,
+    mostPlayedHeroWinRate,
+    overallWinRate,
+    mostBuiltItemKey,
+  } = signatureMoves;
 
-  const nemesis = qualified.length > 0
-    ? [...qualified].sort(
-        (a, b) =>
-          (b.against_games - b.against_win) / b.against_games -
-          (a.against_games - a.against_win) / a.against_games,
-      )[0]
+  const [heroBgError, setHeroBgError] = useState(false);
+  const [itemIconError, setItemIconError] = useState(false);
+
+  const heroPortraitUrl = mostPlayedHeroCleanName
+    ? `${DOTA_CDN}/apps/dota2/images/dota_react/heroes/panorama/images/${mostPlayedHeroCleanName}_vert.jpg`
     : null;
 
-  const punchingBag = qualified.length > 0
-    ? [...qualified].sort(
-        (a, b) => b.against_win / b.against_games - a.against_win / a.against_games,
-      )[0]
+  const itemIconUrl = mostBuiltItemKey
+    ? `${DOTA_CDN}/apps/dota2/images/dota_react/items/${mostBuiltItemKey}.png`
     : null;
 
-  const nemesisHero = nemesis ? resolveHero(nemesis.hero_id, heroList) : null;
-  const bagHero = punchingBag ? resolveHero(punchingBag.hero_id, heroList) : null;
-
-  const nemesisLossPct = nemesis
-    ? (((nemesis.against_games - nemesis.against_win) / nemesis.against_games) * 100).toFixed(0)
-    : "0";
-  const bagWinPct = punchingBag
-    ? ((punchingBag.against_win / punchingBag.against_games) * 100).toFixed(0)
-    : "0";
+  const heroWR = parseFloat(mostPlayedHeroWinRate);
+  const overallWR = parseFloat(overallWinRate);
+  const heroBetter = heroWR >= overallWR;
+  const heroBarColor = heroBetter ? "#22C55E" : "#EF4444";
 
   return (
     <div
       style={{
         width: "100%",
         height: "100%",
-        backgroundColor: "#0d0d1a",
+        backgroundColor: "#111",
         position: "relative",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* Global top branding */}
+      {/* Hero portrait — top 35% */}
       <div
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "20px 22px 0",
-          zIndex: 10,
-          pointerEvents: "none",
+          position: "relative",
+          width: "100%",
+          height: "35%",
+          flexShrink: 0,
+          overflow: "hidden",
         }}
       >
-        <span style={{ ...BRAND, textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
-          Dota Wrapped
-        </span>
-        <span
-          style={{
-            color: "rgba(255,255,255,0.65)",
-            fontSize: 13,
-            fontWeight: 800,
-            textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-          }}
-        >
-          2026
-        </span>
-      </div>
-
-      {/* TOP HALF — Nemesis */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        {nemesisHero?.cleanName && (
+        {heroPortraitUrl && !heroBgError && (
           <img
-            src={`/api/hero-image?hero=${nemesisHero.cleanName}`}
-            alt={nemesisHero.heroName}
+            src={heroPortraitUrl}
+            alt={mostPlayedHeroName}
+            onError={() => setHeroBgError(true)}
             style={{
               position: "absolute",
               inset: 0,
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              objectPosition: "top",
-              filter: "saturate(0.7) brightness(0.55)",
+              objectPosition: "top center",
             }}
           />
         )}
-        {/* Red tint overlay */}
+        {/* Bottom fade to card bg */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(to bottom,rgba(239,68,68,0.18) 0%,rgba(0,0,0,0.65) 100%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(17,17,17,0.6) 65%, #111 100%)",
           }}
         />
-        {/* Text — bottom-left of this half */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 14,
-            left: 22,
-            right: 22,
-          }}
-        >
-          <p
-            style={{
-              color: "#FF4D30",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              marginBottom: 4,
-            }}
-          >
-            Your Nemesis
-          </p>
-          <p
-            style={{
-              color: "white",
-              fontSize: 26,
-              fontWeight: 900,
-              lineHeight: 1,
-              letterSpacing: "-0.02em",
-              marginBottom: 4,
-            }}
-          >
-            {nemesisHero?.heroName ?? "—"}
-          </p>
-          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 500 }}>
-            You lose{" "}
-            <span style={{ color: "#ef4444", fontWeight: 800 }}>
-              {nemesisLossPct}%
-            </span>{" "}
-            against them
-          </p>
-        </div>
-        {/* Divider line */}
+        {/* Hero name */}
         <div
           style={{
             position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
-            height: 1,
-            backgroundColor: "rgba(255,255,255,0.08)",
-          }}
-        />
-      </div>
-
-      {/* BOTTOM HALF — Punching Bag */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        {bagHero?.cleanName && (
-          <img
-            src={`/api/hero-image?hero=${bagHero.cleanName}`}
-            alt={bagHero.heroName}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "top",
-              filter: "saturate(0.7) brightness(0.55)",
-            }}
-          />
-        )}
-        {/* Green tint overlay */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(to bottom,rgba(34,197,94,0.12) 0%,rgba(0,0,0,0.65) 100%)",
-          }}
-        />
-        {/* Text — bottom-left of this half */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 30,
-            left: 22,
-            right: 22,
+            padding: "10px 24px 14px",
           }}
         >
           <p
             style={{
-              color: "#B9FF33",
-              fontSize: 10,
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 9,
               fontWeight: 700,
-              letterSpacing: "0.18em",
+              letterSpacing: "0.3em",
               textTransform: "uppercase",
-              marginBottom: 4,
+              margin: "0 0 4px 0",
             }}
           >
-            Your Punching Bag
+            Signature hero
           </p>
-          <p
+          <h2
             style={{
               color: "white",
-              fontSize: 26,
+              fontSize: 28,
               fontWeight: 900,
-              lineHeight: 1,
               letterSpacing: "-0.02em",
-              marginBottom: 4,
+              lineHeight: 1,
+              margin: 0,
+              textShadow: "0 2px 16px rgba(0,0,0,0.9)",
             }}
           >
-            {bagHero?.heroName ?? "—"}
-          </p>
-          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 500 }}>
-            You win{" "}
-            <span style={{ color: "#22c55e", fontWeight: 800 }}>
-              {bagWinPct}%
-            </span>{" "}
-            against them
-          </p>
+            {mostPlayedHeroName}
+          </h2>
         </div>
-      </div>
-
-      {/* Global bottom branding */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 10,
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          zIndex: 10,
-          pointerEvents: "none",
-        }}
-      >
-        <span style={{ ...BRAND, color: "rgba(255,255,255,0.22)" }}>
-          dotawrapped.gg
+        {/* Year watermark */}
+        <span
+          style={{
+            position: "absolute",
+            right: 10,
+            top: "40%",
+            transform: "translateY(-50%) rotate(90deg)",
+            fontSize: 9,
+            letterSpacing: "0.3em",
+            opacity: 0.3,
+            textTransform: "uppercase",
+            color: "white",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          2026
         </span>
       </div>
+
+      {/* Stats section */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          padding: "14px 24px 0",
+          overflow: "hidden",
+        }}
+      >
+        {/* Year totals label */}
+        <p
+          style={{
+            color: "rgba(255,255,255,0.3)",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.25em",
+            textTransform: "uppercase",
+            margin: "0 0 6px 0",
+          }}
+        >
+          Year totals
+        </p>
+
+        {/* Separator above K/D/A */}
+        <div
+          style={{
+            height: 1,
+            backgroundColor: "rgba(255,255,255,0.08)",
+            marginBottom: 12,
+          }}
+        />
+
+        {/* K / D / A row */}
+        <div style={{ display: "flex", marginBottom: 18 }}>
+          {[
+            { label: "K", value: totalKills.toLocaleString(), color: "#22C55E" },
+            { label: "D", value: totalDeaths.toLocaleString(), color: "#EF4444" },
+            { label: "A", value: totalAssists.toLocaleString(), color: "#38BDF8" },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ flex: 1, textAlign: "center" }}>
+              <p
+                style={{
+                  color,
+                  fontSize: 32,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  letterSpacing: "-0.02em",
+                  margin: "0 0 4px 0",
+                }}
+              >
+                {value}
+              </p>
+              <p
+                style={{
+                  color: "rgba(255,255,255,0.28)",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                  margin: 0,
+                }}
+              >
+                {label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Win rate comparison */}
+        <div style={{ marginBottom: 14 }}>
+          <p
+            style={{
+              color: "rgba(255,255,255,0.3)",
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.25em",
+              textTransform: "uppercase",
+              margin: "0 0 8px 0",
+            }}
+          >
+            Win rate
+          </p>
+          {/* Hero WR bar */}
+          <div style={{ marginBottom: 7 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 4,
+              }}
+            >
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              >
+                {mostPlayedHeroName}
+              </span>
+              <span
+                style={{ color: heroBarColor, fontSize: 10, fontWeight: 700 }}
+              >
+                {mostPlayedHeroWinRate}%
+              </span>
+            </div>
+            <div
+              style={{
+                height: 5,
+                backgroundColor: "rgba(255,255,255,0.07)",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.min(heroWR, 100)}%`,
+                  backgroundColor: heroBarColor,
+                  borderRadius: 3,
+                }}
+              />
+            </div>
+          </div>
+          {/* Overall WR bar */}
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 4,
+              }}
+            >
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              >
+                Overall
+              </span>
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {overallWinRate}%
+              </span>
+            </div>
+            <div
+              style={{
+                height: 5,
+                backgroundColor: "rgba(255,255,255,0.07)",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.min(overallWR, 100)}%`,
+                  backgroundColor: "rgba(255,255,255,0.28)",
+                  borderRadius: 3,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div
+          style={{
+            height: 1,
+            backgroundColor: "rgba(255,255,255,0.08)",
+            marginBottom: 12,
+          }}
+        />
+
+        {/* Most built item */}
+        {topItemName && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {itemIconUrl && !itemIconError ? (
+              <img
+                src={itemIconUrl}
+                alt={topItemName}
+                width={32}
+                height={32}
+                onError={() => setItemIconError(true)}
+                style={{
+                  borderRadius: 4,
+                  objectFit: "contain",
+                  flexShrink: 0,
+                  display: "block",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 4,
+                  backgroundColor: "rgba(255,255,255,0.07)",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <div>
+              <p
+                style={{
+                  color: "rgba(255,255,255,0.3)",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                  margin: "0 0 3px 0",
+                }}
+              >
+                Most built
+              </p>
+              <p
+                style={{
+                  color: "white",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  margin: 0,
+                  lineHeight: 1.1,
+                }}
+              >
+                {topItemName}
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.28)",
+                    fontWeight: 400,
+                    fontSize: 11,
+                  }}
+                >
+                  {" "}
+                  · {topItemGames.toLocaleString()}g
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer spacer */}
+      <div style={{ height: 88, flexShrink: 0 }} />
+
+      {/* Share button */}
+      <button
+        onClick={() =>
+          navigator.clipboard?.writeText(shareUrl()).catch(() => {})
+        }
+        style={{
+          position: "absolute",
+          bottom: 44,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 160,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: "white",
+          color: "black",
+          fontSize: 13,
+          fontWeight: 600,
+          border: "none",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          zIndex: 5,
+        }}
+      >
+        Share this story
+      </button>
+
+      {/* Branding */}
+      <p
+        style={{
+          position: "absolute",
+          bottom: 16,
+          left: 28,
+          fontSize: 10,
+          letterSpacing: "0.15em",
+          opacity: 0.35,
+          color: "white",
+          textTransform: "uppercase",
+          margin: 0,
+          zIndex: 2,
+        }}
+      >
+        Dota Wrapped
+      </p>
     </div>
   );
 }
