@@ -177,7 +177,7 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
           <p
             style={{
               color: "white",
-              fontSize: 48,
+              fontSize: 36,
               fontWeight: 900,
               lineHeight: 0.9,
               letterSpacing: "-0.04em",
@@ -189,7 +189,7 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
           <p
             style={{
               color: "rgba(255,255,255,0.4)",
-              fontSize: 48,
+              fontSize: 36,
               fontWeight: 900,
               lineHeight: 0.9,
               letterSpacing: "-0.04em",

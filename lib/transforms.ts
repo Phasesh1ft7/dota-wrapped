@@ -1,4 +1,57 @@
-import type { Match, Hero, PlayerHeroStats, ItemConstant, PlayerItemStat, PlayerTotal } from "./opendota";
+import type { Match, Hero, PlayerHeroStats, ItemConstant, PlayerItemStat, PlayerTotal, ComputedRelic } from "./opendota";
+
+// ---------------------------------------------------------------------------
+// Relic helpers (used by API route and server page)
+// ---------------------------------------------------------------------------
+
+function formatAbilityLabel(key: string, heroName: string): string {
+  return key
+    .replace(heroName + '_', '')
+    .replace(/_/g, ' ')
+    .replace(/\b(the|of|and|a|an)\b/gi, w => w.toLowerCase())
+    .replace(/shadowraze\d/i, 'Shadowraze')
+    .replace(/sun strike/i, 'Sun Strike')
+    .replace(/ball lightning/i, 'Ball Lightning')
+    .trim()
+    .toUpperCase();
+}
+
+export function deriveRelics(
+  heroName: string,
+  abilityUses: Record<string, number>,
+  damageInflictor: Record<string, number>,
+): ComputedRelic[] {
+  const heroAbilityUses = Object.entries(abilityUses)
+    .filter(([k]) => k.startsWith(heroName + '_'))
+    .sort(([, a], [, b]) => b - a);
+
+  const heroDamageKeys = Object.entries(damageInflictor)
+    .filter(([k]) => k.startsWith(heroName + '_'))
+    .sort(([, a], [, b]) => b - a);
+
+  const relics: ComputedRelic[] = [];
+  const usedKeys = new Set<string>();
+
+  for (const [key, value] of heroAbilityUses.slice(0, 2)) {
+    relics.push({ label: formatAbilityLabel(key, heroName) + ' CASTS', value, suffix: undefined, rarity: 'common' });
+    usedKeys.add(key);
+  }
+
+  if (heroDamageKeys.length > 0) {
+    const [key, value] = heroDamageKeys[0];
+    relics.push({ label: formatAbilityLabel(key, heroName) + ' DAMAGE', value, suffix: 'dmg', rarity: 'common' });
+    usedKeys.add(key);
+  }
+
+  const signatureEntry = heroAbilityUses.find(([k]) => !usedKeys.has(k))
+    ?? heroDamageKeys.find(([k]) => !usedKeys.has(k));
+  if (signatureEntry) {
+    const [key, value] = signatureEntry;
+    relics.push({ label: 'SIGNATURE: ' + formatAbilityLabel(key, heroName), value, suffix: undefined, rarity: 'rare' });
+  }
+
+  return relics.slice(0, 4);
+}
 
 // ---------------------------------------------------------------------------
 // Win condition (canonical — do not change)
@@ -267,6 +320,16 @@ export interface BestGame {
   duration: number;
   isWin: boolean;
   matchId: number;
+  cs: number;
+  gpm: number;
+  xpm: number;
+  heroDamage: number;
+  item0: number;
+  item1: number;
+  item2: number;
+  item3: number;
+  item4: number;
+  item5: number;
 }
 
 /**
@@ -302,6 +365,16 @@ export function getBestGame(
     duration: best.duration,
     isWin: isWin(best),
     matchId: best.match_id,
+    cs: best.last_hits ?? 0,
+    gpm: best.gold_per_min ?? 0,
+    xpm: best.xp_per_min ?? 0,
+    heroDamage: best.hero_damage ?? 0,
+    item0: best.item_0 ?? 0,
+    item1: best.item_1 ?? 0,
+    item2: best.item_2 ?? 0,
+    item3: best.item_3 ?? 0,
+    item4: best.item_4 ?? 0,
+    item5: best.item_5 ?? 0,
   };
 }
 
@@ -339,6 +412,16 @@ export function getBestHeroGame(
     duration: best.duration,
     isWin: isWin(best),
     matchId: best.match_id,
+    cs: best.last_hits ?? 0,
+    gpm: best.gold_per_min ?? 0,
+    xpm: best.xp_per_min ?? 0,
+    heroDamage: best.hero_damage ?? 0,
+    item0: best.item_0 ?? 0,
+    item1: best.item_1 ?? 0,
+    item2: best.item_2 ?? 0,
+    item3: best.item_3 ?? 0,
+    item4: best.item_4 ?? 0,
+    item5: best.item_5 ?? 0,
   };
 }
 
@@ -398,6 +481,10 @@ export interface SignatureMoves {
   heroWinStreak: number;
   careerGamesOnHero: number;
   bestHeroGame: BestGame | null;
+  radiantWins: number;
+  radiantGames: number;
+  direWins: number;
+  direGames: number;
 }
 
 export function getSignatureMoves(
@@ -406,6 +493,7 @@ export function getSignatureMoves(
   heroes: Hero[],
   playerItems: Record<string, PlayerItemStat> | null,
   itemConstants: Record<string, ItemConstant> | null,
+  heroCareerMatches?: Match[] | null,
 ): SignatureMoves {
   const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
 
@@ -477,10 +565,13 @@ export function getSignatureMoves(
   const careerEntry = playerHeroes.find((ph) => Number(ph.hero_id) === topHeroId);
   const careerGamesOnHero = careerEntry?.games ?? 0;
 
-  // bestHeroGame: highest-KDA match on the top hero this year
+  // bestHeroGame: highest-KDA match on the top hero — year matches preferred, career fallback
+  const heroGamePool = heroYearMatches.length > 0
+    ? heroYearMatches
+    : (heroCareerMatches && heroCareerMatches.length > 0 ? heroCareerMatches : []);
   let bestHeroGame: BestGame | null = null;
-  if (heroYearMatches.length > 0) {
-    const sorted = [...heroYearMatches].sort((a, b) => {
+  if (heroGamePool.length > 0) {
+    const sorted = [...heroGamePool].sort((a, b) => {
       const kdaA = (a.kills + a.assists) / Math.max(a.deaths, 1);
       const kdaB = (b.kills + b.assists) / Math.max(b.deaths, 1);
       return kdaB - kdaA;
@@ -497,8 +588,29 @@ export function getSignatureMoves(
       duration: best.duration,
       isWin: isWin(best),
       matchId: best.match_id,
+      cs: best.last_hits ?? 0,
+      gpm: best.gold_per_min ?? 0,
+      xpm: best.xp_per_min ?? 0,
+      heroDamage: best.hero_damage ?? 0,
+      item0: best.item_0 ?? 0,
+      item1: best.item_1 ?? 0,
+      item2: best.item_2 ?? 0,
+      item3: best.item_3 ?? 0,
+      item4: best.item_4 ?? 0,
+      item5: best.item_5 ?? 0,
     };
   }
+
+  // Use career hero matches for radiant/dire if available; fall back to year matches
+  const heroMatchesForStats = (heroCareerMatches && heroCareerMatches.length > 0)
+    ? heroCareerMatches
+    : heroYearMatches;
+  const radiantHeroMatches = heroMatchesForStats.filter((m) => m.player_slot < 128);
+  const radiantWins = radiantHeroMatches.filter(isWin).length;
+  const radiantGames = radiantHeroMatches.length;
+  const direHeroMatches = heroMatchesForStats.filter((m) => m.player_slot >= 128);
+  const direWins = direHeroMatches.filter(isWin).length;
+  const direGames = direHeroMatches.length;
 
   return {
     topItemName,
@@ -517,6 +629,10 @@ export function getSignatureMoves(
     heroWinStreak,
     careerGamesOnHero,
     bestHeroGame,
+    radiantWins,
+    radiantGames,
+    direWins,
+    direGames,
   };
 }
 
@@ -743,9 +859,17 @@ export interface YearInNumbers {
   winRateMid: number;
   winRateLong: number;
   uniqueHeroes: number;
+  mostPlayedHeroCleanName: string;
+  firstBloodRate: number;
+  comebackWins: number;
+  avgKills: number;
+  avgDeaths: number;
+  totalRampages: number;
+  partyWinRate: number;
 }
 
-export function getYearInNumbers(yearMatches: Match[]): YearInNumbers {
+export function getYearInNumbers(yearMatches: Match[], heroes: Hero[]): YearInNumbers {
+  console.log('sample match kills:', yearMatches.slice(0, 3).map(m => m.kills));
   const totalGames = yearMatches.length;
   const totalSeconds = yearMatches.reduce((s, m) => s + m.duration, 0);
   const totalHours = Math.round((totalSeconds / 3600) * 10) / 10;
@@ -778,6 +902,41 @@ export function getYearInNumbers(yearMatches: Match[]): YearInNumbers {
     return Math.round((arr.filter(isWin).length / arr.length) * 1000) / 10;
   };
 
+  const heroCounts: Record<number, number> = {};
+  for (const m of yearMatches) {
+    heroCounts[m.hero_id] = (heroCounts[m.hero_id] ?? 0) + 1;
+  }
+  const topHeroEntry = Object.entries(heroCounts).sort(([, a], [, b]) => b - a)[0];
+  const topHeroId = topHeroEntry ? Number(topHeroEntry[0]) : -1;
+  const heroMap = new Map<number, Hero>(heroes.map((h) => [h.id, h]));
+  const mostPlayedHeroCleanName =
+    topHeroId > 0 ? (heroMap.get(topHeroId)?.name.replace("npc_dota_hero_", "") ?? "") : "";
+
+  const firstBloodRate =
+    totalGames > 0
+      ? (yearMatches.filter((m) => m.firstblood_claimed).length / totalGames) * 100
+      : 0;
+
+  const comebackWins = yearMatches.filter(
+    (m) => isWin(m) && (m.comeback === true || m.duration > 45 * 60),
+  ).length;
+
+  const avgKills = totalGames > 0
+    ? yearMatches.reduce((s, m) => s + (m.kills ?? 0), 0) / totalGames
+    : 0;
+
+  const avgDeaths = totalGames > 0
+    ? yearMatches.reduce((s, m) => s + (m.deaths ?? 0), 0) / totalGames
+    : 0;
+
+  const totalRampages = yearMatches.reduce((s, m) => s + (m.multi_kills?.rampage ?? 0), 0);
+
+  const partyGames = yearMatches.filter((m) => (m.party_size ?? 0) > 1);
+  const partyWinRate =
+    partyGames.length > 0
+      ? (partyGames.filter(isWin).length / partyGames.length) * 100
+      : 0;
+
   return {
     totalGames,
     totalHours,
@@ -789,5 +948,12 @@ export function getYearInNumbers(yearMatches: Match[]): YearInNumbers {
     winRateMid: winPct(yearMatches.filter((m) => m.duration >= 1800 && m.duration <= 2700)),
     winRateLong: winPct(yearMatches.filter((m) => m.duration > 2700)),
     uniqueHeroes: new Set(yearMatches.map((m) => m.hero_id)).size,
+    mostPlayedHeroCleanName,
+    firstBloodRate,
+    comebackWins,
+    avgKills,
+    avgDeaths,
+    totalRampages,
+    partyWinRate,
   };
 }

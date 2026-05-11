@@ -189,16 +189,18 @@ export default function Card5Summary({
             <p
               style={{
                 color: "white",
-                fontSize: 48,
+                fontSize: 40,
                 fontWeight: 900,
                 lineHeight: 0.9,
                 letterSpacing: "-0.04em",
                 textTransform: "uppercase",
                 marginBottom: 3,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
               }}
             >
               {wins.toLocaleString()}
-              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 32 }}>{" "}/{" "}</span>
+              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 28 }}>{" "}/{" "}</span>
               {losses.toLocaleString()}
             </p>
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 5 }}>

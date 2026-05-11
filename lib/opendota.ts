@@ -74,6 +74,15 @@ export interface Match {
   cluster: number;
   leaver_status: number;
   party_size: number | null;
+  firstblood_claimed?: boolean;
+  comeback?: boolean;
+  multi_kills?: { rampage?: number; [key: string]: number | undefined };
+  item_0?: number;
+  item_1?: number;
+  item_2?: number;
+  item_3?: number;
+  item_4?: number;
+  item_5?: number;
 }
 
 export interface Peer {
@@ -163,6 +172,18 @@ export interface Hero {
   pro_pick: number;
 }
 
+export interface HeroAbilitiesEntry {
+  abilities: string[];
+  ultimate: string;
+}
+
+export interface ComputedRelic {
+  label: string;
+  value: number;
+  suffix?: string;
+  rarity?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Aggregated return types
 // ---------------------------------------------------------------------------
@@ -203,6 +224,9 @@ export interface BestGameData {
 export interface BestHeroMatchData {
   gpm: number | null;
   lastHits: number | null;
+  xpm: number | null;
+  netWorth: number | null;
+  heroDamage: number;
   isParsed: boolean;
   items: number[];
 }
@@ -210,6 +234,7 @@ export interface BestHeroMatchData {
 /** Slow slice — returned by fetchPlayerMatches (3–8 s). */
 export interface MatchesData {
   heroes: PlayerHeroStats[] | null;
+
   matches: Match[] | null;
   recentMatches: Match[] | null;
   peers: Peer[] | null;
@@ -219,18 +244,21 @@ export interface MatchesData {
   bestGameData: BestGameData | null;
   bestHeroMatchDetails: BestHeroMatchData | null;
   playerTotals: PlayerTotal[] | null;
+  heroAbilities: Record<string, HeroAbilitiesEntry> | null;
+  heroCareerMatches: Match[] | null;
 }
 
 /** Combined type kept for backwards compatibility. */
 export interface PlayerData extends ProfileData, MatchesData {}
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------
+// ---------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -263,6 +291,9 @@ interface FullMatchPlayer {
   hero_id: number;
   last_hits: number;
   gold_per_min: number;
+  xp_per_min?: number;
+  net_worth?: number;
+  hero_damage?: number;
   item_0: number;
   item_1: number;
   item_2: number;
@@ -409,19 +440,19 @@ async function resolveBestHeroMatchDetails(
   accountId: string,
   matches: Match[] | null,
   playerHeroes: PlayerHeroStats[] | null,
-): Promise<BestHeroMatchData | null> {
-  if (!matches || !playerHeroes || playerHeroes.length === 0) return null;
+): Promise<{ details: BestHeroMatchData | null; careerMatches: Match[] }> {
+  if (!matches || !playerHeroes || playerHeroes.length === 0) return { details: null, careerMatches: [] };
 
-  // Top hero = most games played
+  // Top hero = most games played (all-time from /heroes endpoint)
   const topHeroId = Number(
     [...playerHeroes].sort((a, b) => b.games - a.games)[0].hero_id,
   );
 
-  // Fetch all-time hero-specific matches (not limited to date=365)
+  // Fetch career hero matches (no date filter, high limit for radiant/dire stats)
   let heroMatches: Match[] = [];
   try {
     const heroMatchesRes = await fetch(
-      `${BASE_URL}/players/${accountId}/matches?hero_id=${topHeroId}&limit=20&significant=1`,
+      `${BASE_URL}/players/${accountId}/matches?hero_id=${topHeroId}&limit=200`,
       { next: { revalidate: 3600 } },
     );
     heroMatches = heroMatchesRes.ok ? (await heroMatchesRes.json() as Match[]) : [];
@@ -434,31 +465,70 @@ async function resolveBestHeroMatchDetails(
     heroMatches = (matches ?? []).filter((m) => m.hero_id === topHeroId);
   }
 
-  if (heroMatches.length === 0) return null;
+  const careerMatches = heroMatches;
+
+  if (heroMatches.length === 0) return { details: null, careerMatches: [] };
   const bestMatch = [...heroMatches].sort((a, b) => b.kills - a.kills)[0];
+
+  // gpm/xpm/lastHits/heroDamage are always available from the basic match list data
+  const baseGpm = bestMatch.gold_per_min > 0 ? bestMatch.gold_per_min : null;
+  const baseXpm = bestMatch.xp_per_min > 0 ? bestMatch.xp_per_min : null;
+  const baseLastHits = bestMatch.last_hits;
+  const baseHeroDamage = bestMatch.hero_damage;
+  console.log('[computed base fields]', {
+    baseGpm,
+    baseXpm,
+    baseLastHits,
+  });
 
   try {
     const full = await fetchJson<FullMatchData>(
       `${BASE_URL}/matches/${bestMatch.match_id}`,
     );
-    if (!full) return { gpm: null, lastHits: null, isParsed: false, items: [] };
+    if (!full) return { details: { gpm: baseGpm, lastHits: baseLastHits, xpm: baseXpm, netWorth: null, heroDamage: baseHeroDamage ?? 0, isParsed: false, items: [0, 0, 0, 0, 0, 0] }, careerMatches };
     const player = full.players.find(
       (p) => String(p.account_id) === String(accountId),
     );
-    if (!player) return { gpm: null, lastHits: null, isParsed: false, items: [] };
+    if (!player) return { details: { gpm: baseGpm, lastHits: baseLastHits, xpm: baseXpm, netWorth: null, heroDamage: baseHeroDamage ?? 0, isParsed: false, items: [0, 0, 0, 0, 0, 0] }, careerMatches };
+    console.log('[FullMatchPlayer raw]', {
+      gold_per_min: player.gold_per_min,
+      xp_per_min: player.xp_per_min,
+      last_hits: player.last_hits,
+      hero_damage: player.hero_damage,
+    });
 
     const items = [
-      player.item_0, player.item_1, player.item_2,
-      player.item_3, player.item_4, player.item_5,
-    ].filter((id) => id !== 0);
-    const isParsed = bestMatch.version !== null && items.length > 0;
+      player.item_0 ?? 0, player.item_1 ?? 0, player.item_2 ?? 0,
+      player.item_3 ?? 0, player.item_4 ?? 0, player.item_5 ?? 0,
+    ];
+    const isParsed = bestMatch.version !== null && items.some((id) => id !== 0);
 
     return {
-      gpm: isParsed ? player.gold_per_min : null,
-      lastHits: isParsed ? player.last_hits : null,
-      isParsed,
-      items,
+      details: {
+        gpm: player.gold_per_min ?? baseGpm,
+        lastHits: player.last_hits ?? baseLastHits,
+        xpm: player.xp_per_min ?? baseXpm,
+        netWorth: isParsed ? (player.net_worth ?? null) : null,
+        heroDamage: player.hero_damage ?? bestMatch.hero_damage ?? 0,
+        isParsed,
+        items,
+      },
+      careerMatches,
     };
+  } catch {
+    return { details: { gpm: baseGpm, lastHits: baseLastHits, xpm: baseXpm, netWorth: null, heroDamage: baseHeroDamage ?? 0, isParsed: false, items: [0, 0, 0, 0, 0, 0] }, careerMatches };
+  }
+}
+
+async function fetchHeroAbilities(): Promise<Record<string, HeroAbilitiesEntry> | null> {
+  return fetchJson<Record<string, HeroAbilitiesEntry>>(`${BASE_URL}/constants/hero_abilities`);
+}
+
+export async function fetchHeroAbilitiesClient(): Promise<Record<string, HeroAbilitiesEntry> | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/constants/hero_abilities`);
+    if (!res.ok) return null;
+    return await res.json() as Record<string, HeroAbilitiesEntry>;
   } catch {
     return null;
   }
@@ -509,7 +579,7 @@ export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
 export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
   return unstable_cache(
     async () => {
-      const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult, heroListResult, playerItemsResult, playerTotalsResult] =
+      const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult, heroListResult, playerItemsResult, playerTotalsResult, heroAbilitiesResult] =
         await Promise.allSettled([
           fetchJson<PlayerHeroStats[]>(
             `${BASE_URL}/players/${accountId}/heroes`,
@@ -523,6 +593,7 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
           fetchJson<Hero[]>(`${BASE_URL}/heroes`),
           fetchJson<Record<string, PlayerItemStat>>(`${BASE_URL}/players/${accountId}/items`),
           fetchJson<PlayerTotal[]>(`${BASE_URL}/players/${accountId}/totals`),
+          fetchHeroAbilities(),
         ]);
 
       const recentMatches =
@@ -537,11 +608,14 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
       const playerHeroes =
         heroesResult.status === "fulfilled" ? heroesResult.value : null;
 
-      const [quizMatches, bestGameData, bestHeroMatchDetails] = await Promise.all([
+      const [quizMatches, bestGameData, heroMatchResult] = await Promise.all([
         resolveQuizMatches(accountId, recentMatches),
         resolveBestGameDetails(accountId, matches, heroList),
         resolveBestHeroMatchDetails(accountId, matches, playerHeroes),
       ]);
+
+      const bestHeroMatchDetails = heroMatchResult.details;
+      const heroCareerMatches = heroMatchResult.careerMatches;
 
       return {
         heroes: playerHeroes,
@@ -557,7 +631,9 @@ export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
         playerItems: playerItemsResult.status === "fulfilled" ? playerItemsResult.value : null,
         bestGameData,
         bestHeroMatchDetails,
+        heroCareerMatches,
         playerTotals: playerTotalsResult.status === "fulfilled" ? playerTotalsResult.value : null,
+        heroAbilities: heroAbilitiesResult.status === "fulfilled" ? heroAbilitiesResult.value : null,
       };
     },
     [`player-matches-${accountId}`],
@@ -572,4 +648,85 @@ export async function fetchPlayerData(accountId: string): Promise<PlayerData> {
     fetchPlayerMatches(accountId),
   ]);
   return { ...profile, ...matches };
+}
+
+/**
+ * Fetches relic (ability_uses, damage_inflictor, ability_targets) data for a hero's recent matches.
+ * Matches must be parsed by OpenDota to contain ability data — unparsed matches return empty objects.
+ * Parse requests are submitted for any unparsed match, but may take 30–60 seconds to process on
+ * OpenDota's side, so relic data may not be available until a subsequent request.
+ */
+export async function fetchHeroRelicMatches(
+  accountId: string,
+  heroId: number,
+  limit = 8,
+): Promise<{ aggregated: { ability_uses: Record<string, number>; damage_inflictor: Record<string, number> }; parsedCount: number }> {
+  const matchList = await fetch(
+    `${BASE_URL}/players/${accountId}/matches?hero_id=${heroId}&limit=${limit}`,
+    { next: { revalidate: 3600 } },
+  ).then((r) => r.json());
+
+  const matchIds: number[] = (matchList as Array<{ match_id: number }>).map((m) => m.match_id);
+
+  const results: { ability_uses: Record<string, number>; damage_inflictor: Record<string, number> }[] = [];
+  for (const matchId of matchIds) {
+    await new Promise((r) => setTimeout(r, 100));
+    try {
+      const detail = await fetch(
+        `${BASE_URL}/matches/${matchId}`,
+        { next: { revalidate: 86400 } },
+      ).then((r) => r.json());
+
+      const player = (detail.players as Array<{ account_id: number; ability_uses?: Record<string, number>; damage_inflictor?: Record<string, number> }> | undefined)?.find(
+        (p) => String(p.account_id) === String(accountId),
+      );
+      if (player) {
+        const abilityUses = player.ability_uses ?? {};
+        if (Object.keys(abilityUses).length === 0) {
+          fetch(`https://api.opendota.com/api/request/${matchId}`, { method: 'POST' }).catch(() => {});
+        }
+        results.push({
+          ability_uses: abilityUses,
+          damage_inflictor: player.damage_inflictor ?? {},
+        });
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  const aggregated = {
+    ability_uses: {} as Record<string, number>,
+    damage_inflictor: {} as Record<string, number>,
+  };
+  for (const match of results) {
+    for (const [k, v] of Object.entries(match.ability_uses)) {
+      aggregated.ability_uses[k] = (aggregated.ability_uses[k] ?? 0) + v;
+    }
+    for (const [k, v] of Object.entries(match.damage_inflictor)) {
+      aggregated.damage_inflictor[k] = (aggregated.damage_inflictor[k] ?? 0) + v;
+    }
+  }
+
+  const parsedCount = results.filter(r => Object.keys(r.ability_uses).length > 0).length;
+  console.log(`Relic data: ${parsedCount}/${matchIds.length} matches parsed`);
+  return { aggregated, parsedCount };
+}
+
+export async function requestMatchParse(matchId: number): Promise<void> {
+  try {
+    await fetch(`https://api.opendota.com/api/request/${matchId}`, {
+      method: 'POST',
+    })
+  } catch {
+    // fire and forget
+  }
+}
+
+export async function fetchHeroBenchmarks(heroId: number): Promise<Record<string, { pct: number; value: number }[]>> {
+  const data = await fetch(
+    `https://api.opendota.com/api/benchmarks?hero_id=${heroId}`,
+    { next: { revalidate: 3600 } }
+  ).then(r => r.json())
+  return data.result ?? {}
 }

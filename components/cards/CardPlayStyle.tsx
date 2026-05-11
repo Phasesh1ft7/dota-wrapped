@@ -141,7 +141,7 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
         {/* LEFT: Radar */}
         <div
           style={{
-            width: "45%",
+            width: 156,
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
@@ -160,9 +160,9 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
           <RadarChart
             cx="50%"
             cy="50%"
-            outerRadius={70}
-            width={240}
-            height={240}
+            outerRadius={50}
+            width={156}
+            height={156}
             data={radarData}
           >
             <PolarGrid stroke="rgba(255,255,255,0.08)" />

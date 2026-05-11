@@ -103,5 +103,13 @@ export default function WrappedClientFetch({ accountId }: { accountId: string })
     return <ErrorScreen avatar={avatar} name={name} type="hidden" accountId={accountId} />;
   }
 
-  return <WrappedClient profile={data} matchesPromise={Promise.resolve(data)} />;
+  const heroYearCounts: Record<number, number> = {};
+  for (const m of data.matches ?? []) {
+    heroYearCounts[m.hero_id] = (heroYearCounts[m.hero_id] ?? 0) + 1;
+  }
+  const topYearEntry = Object.entries(heroYearCounts).sort(([, a], [, b]) => b - a)[0];
+  const topHeroId = topYearEntry ? Number(topYearEntry[0]) : 0;
+  const heroRelicsConfig = topHeroId > 0 ? { accountId, heroId: topHeroId } : null;
+
+  return <WrappedClient profile={data} matchesPromise={Promise.resolve(data)} heroRelicsConfig={heroRelicsConfig} />;
 }

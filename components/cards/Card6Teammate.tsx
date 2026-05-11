@@ -240,13 +240,14 @@ export default function Card6Teammate({ peers }: Props) {
         style={{
           display: "flex",
           justifyContent: "center",
-          gap: 32,
+          flexWrap: "wrap",
+          gap: 20,
           marginBottom: 16,
           flexShrink: 0,
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <p style={{ color: "white", fontSize: 48, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", marginBottom: 4 }}>
+          <p style={{ color: "white", fontSize: 40, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", marginBottom: 4 }}>
             {topPeer.with_games}
           </p>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.15em" }}>
@@ -254,7 +255,7 @@ export default function Card6Teammate({ peers }: Props) {
           </p>
         </div>
         <div style={{ textAlign: "center" }}>
-          <p style={{ color: isGoodWr ? "#B9FF33" : "#FF4D30", fontSize: 48, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", marginBottom: 4 }}>
+          <p style={{ color: isGoodWr ? "#B9FF33" : "#FF4D30", fontSize: 40, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", marginBottom: 4 }}>
             {winRate}%
           </p>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.15em" }}>

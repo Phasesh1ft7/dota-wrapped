@@ -11,13 +11,14 @@ import type {
   PlayerData,
 } from "./opendota";
 
-const GRAPHQL_URL = "https://api.stratz.com/graphql";
-const REST_BASE = "https://api.stratz.com/api/v1";
+const GRAPHQL_URL = "/api/stratz";
+const HEROES_URL = "/api/stratz/heroes";
+const ITEMS_URL = "/api/stratz/items";
 
 function authHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${process.env.NEXT_PUBLIC_STRATZ_API_KEY ?? ""}`,
+    Authorization: `Bearer ${process.env.STRATZ_API_KEY ?? ""}`,
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/json",
     "Accept-Language": "en-US,en;q=0.9",
@@ -190,8 +191,7 @@ async function fetchHeroList(): Promise<Hero[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${REST_BASE}/Hero`, {
-      headers: authHeaders(),
+    const res = await fetch(HEROES_URL, {
       signal: controller.signal,
     });
     if (!res.ok) return [];
@@ -227,8 +227,7 @@ async function fetchItemConstants(): Promise<Record<string, ItemConstant>> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${REST_BASE}/Item`, {
-      headers: authHeaders(),
+    const res = await fetch(ITEMS_URL, {
       signal: controller.signal,
     });
     if (!res.ok) return {};
@@ -418,15 +417,20 @@ function buildBestHeroMatchData(
   const p = best.players[0];
   if (!p) return null;
 
-  const itemIds = [p.item0Id, p.item1Id, p.item2Id, p.item3Id, p.item4Id, p.item5Id];
-  const items = itemIds.filter((id) => id !== 0);
-  const isParsed = items.length > 0;
+  const items = [
+    p.item0Id ?? 0, p.item1Id ?? 0, p.item2Id ?? 0,
+    p.item3Id ?? 0, p.item4Id ?? 0, p.item5Id ?? 0,
+  ];
+  const isParsed = items.some((id) => id !== 0);
 
   return {
-    gpm: isParsed ? p.goldPerMinute : null,
-    lastHits: isParsed ? p.numLastHits : null,
+    gpm: p.goldPerMinute ?? 0,
+    lastHits: p.numLastHits ?? 0,
+    xpm: p.experiencePerMinute ?? 0,
+    netWorth: null,
+    heroDamage: p.heroDamage ?? 0,
     isParsed,
-    items: isParsed ? items : [],
+    items,
   };
 }
 
@@ -545,6 +549,8 @@ export async function fetchPlayerData(accountId: number): Promise<PlayerData> {
     playerItems: Object.keys(playerItems).length > 0 ? playerItems : null,
     bestGameData,
     bestHeroMatchDetails,
+    heroCareerMatches: null,
     playerTotals: playerTotals.length > 0 ? playerTotals : null,
+    heroAbilities: null,
   };
 }

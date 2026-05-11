@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 interface Props {
@@ -11,7 +11,24 @@ interface Props {
 export default function CardModal({ onClose, children }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
+  const [showScanLine, setShowScanLine] = useState(true);
   const shouldReduceMotion = useReducedMotion() ?? false;
+
+  useEffect(() => {
+    if (shouldReduceMotion) return;
+    if (!document.getElementById("scanline-style")) {
+      const style = document.createElement("style");
+      style.id = "scanline-style";
+      style.textContent = `
+        @keyframes scanDown { from { top: 0% } to { top: 100% } }
+        @keyframes fadeOut { to { opacity: 0 } }
+        .scan-line { animation: scanDown 0.3s ease-in forwards, fadeOut 0.1s 0.3s ease-out forwards; }
+      `;
+      document.head.appendChild(style);
+    }
+    const timer = setTimeout(() => setShowScanLine(false), 400);
+    return () => clearTimeout(timer);
+  }, [shouldReduceMotion]);
 
   function dismiss() {
     setVisible(false);
@@ -86,26 +103,50 @@ export default function CardModal({ onClose, children }: Props) {
           {/* Card container — clamps to viewport width on small screens */}
           <motion.div
             ref={cardRef}
-            initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.92, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={shouldReduceMotion ? {} : { opacity: 0, scale: 0.95, y: 10 }}
+            initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.92 }}
+            animate={
+              shouldReduceMotion
+                ? { opacity: 1, scale: 1 }
+                : { opacity: [0, 1, 1], scale: [0.92, 1.02, 1.0] }
+            }
+            exit={
+              shouldReduceMotion
+                ? {}
+                : { opacity: 0, scale: 0.95, transition: { duration: 0.15, ease: "easeIn" } }
+            }
             transition={
               shouldReduceMotion
                 ? { duration: 0 }
-                : { type: "spring", stiffness: 200, damping: 25, duration: 0.4 }
+                : { duration: 0.25, times: [0, 0.6, 1], ease: "easeOut" }
             }
             style={{
               width: 390,
-              maxWidth: "calc(100vw - 40px)",   /* 320px fix: card can't exceed viewport */
+              maxWidth: "calc(100vw - 40px)",
               height: 690,
               borderRadius: 20,
               overflow: "hidden",
               flexShrink: 0,
-              marginTop: 48,    /* space for the fixed close button */
+              marginTop: 48,
+              position: "relative",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {children}
+            {!shouldReduceMotion && showScanLine && (
+              <div
+                className="scan-line"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: 2,
+                  background: "rgba(255,255,255,0.6)",
+                  zIndex: 10,
+                  pointerEvents: "none",
+                }}
+              />
+            )}
           </motion.div>
 
           {/* Download button */}

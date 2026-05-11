@@ -1,7 +1,11 @@
 "use client";
 
-import type { ProfileData, ItemConstant, BestHeroMatchData } from "@/lib/opendota";
-import type { HeroStatEntry, BestGame } from "@/lib/transforms";
+import { useState, useEffect } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import type { ProfileData, ItemConstant, BestHeroMatchData, Match } from "@/lib/opendota";
+import { fetchHeroAbilitiesClient } from "@/lib/opendota";
+import { getItemName, ITEM_CDN } from "@/lib/itemUtils";
+import type { HeroStatEntry, BestGame, SignatureMoves } from "@/lib/transforms";
 
 interface Props {
   profile: ProfileData;
@@ -9,17 +13,15 @@ interface Props {
   bestHeroGame: BestGame | null;
   bestHeroMatchDetails: BestHeroMatchData | null;
   itemConstants: Record<string, ItemConstant> | null;
+  signatureMoves: SignatureMoves;
+  yearMatches: Match[];
+  yearWinRate: string;
+  heroAbilities: Record<string, { abilities: string[] }> | null;
 }
 
 const DOTA_CDN = "https://cdn.cloudflare.steamstatic.com";
-
-const BRAND: React.CSSProperties = {
-  color: "rgba(255,255,255,0.5)",
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-};
+const GOLD = "#c8a84b";
+const GREY = "rgba(255,255,255,0.4)";
 
 export default function Card1Hero({
   profile,
@@ -27,289 +29,388 @@ export default function Card1Hero({
   bestHeroGame,
   bestHeroMatchDetails,
   itemConstants,
+  signatureMoves,
+  heroAbilities,
 }: Props) {
+  const [abilitiesFallback, setAbilitiesFallback] = useState<Record<string, { abilities: string[] }> | null>(null);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (heroAbilities) return;
+    fetchHeroAbilitiesClient().then((data) => {
+      if (data) setAbilitiesFallback(data);
+    });
+  }, [heroAbilities]);
+
   if (!topHero) {
     return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          backgroundColor: "#000000",
-          position: "relative",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 12,
-          padding: "0 32px 88px",
-        }}
-      >
-        <svg viewBox="0 0 300 80" style={{ position: "absolute", bottom: 0, left: 0, right: 0, width: "100%", opacity: 0.1, pointerEvents: "none" }}>
-          <path d="M-10,60 Q50,20 100,50 Q150,80 200,40 Q250,10 310,45" fill="none" stroke="white" strokeWidth="2" />
-          <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
-        </svg>
-        <div style={{ position: "absolute", top: 20, left: 22, right: 22, display: "flex", justifyContent: "space-between" }}>
-          <span style={{ ...BRAND, textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>Dota Wrapped</span>
-          <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 800 }}>2026</span>
-        </div>
-        <p style={{ position: "absolute", bottom: 16, left: 22, fontSize: 10, letterSpacing: "0.15em", opacity: 0.35, color: "white", textTransform: "uppercase", margin: 0 }}>
-          Dota Wrapped
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.08)", fontSize: 180, fontWeight: 900, lineHeight: 1, margin: 0, userSelect: "none" }}>?</p>
+      <div style={{ width: "100%", height: "100%", backgroundColor: "#0a0c0f", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <p style={{ color: "rgba(255,255,255,0.08)", fontSize: 180, fontWeight: 900, lineHeight: 1, margin: 0 }}>?</p>
         <p style={{ color: "white", fontSize: 18, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.25em", textAlign: "center", margin: 0 }}>
           No Hero Data
         </p>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textAlign: "center", maxWidth: 260, lineHeight: 1.5, margin: 0 }}>
+        <p style={{ color: GREY, fontSize: 13, textAlign: "center", maxWidth: 260, lineHeight: 1.5, margin: 0 }}>
           This player&apos;s hero stats aren&apos;t publicly available.
         </p>
       </div>
     );
   }
 
+  const effectiveAbilities = heroAbilities ?? abilitiesFallback;
   const heroData = profile.heroList?.find((h) => h.id === topHero.hero_id);
   const cleanName = heroData?.name.replace("npc_dota_hero_", "") ?? "";
-  const imgUrl = `/api/hero-image?hero=${cleanName}`;
-  const isGoodWr = parseFloat(topHero.winRate) >= 50;
-  const wr = parseFloat(topHero.winRate);
-
-  const bestGameDurationMin = bestHeroGame
-    ? `${Math.floor(bestHeroGame.duration / 60)}m`
+  const portraitUrl = cleanName
+    ? `${DOTA_CDN}/apps/dota2/images/dota_react/heroes/${cleanName}_full.png`
     : null;
 
-  const isParsed = bestHeroMatchDetails?.isParsed ?? false;
+  const wr = parseFloat(topHero.winRate);
+  const isGoodWr = wr >= 50;
+  const losses = topHero.games - topHero.wins;
+  const careerGames = signatureMoves?.careerGamesOnHero ?? topHero.games;
+  const vicPct = careerGames > 0 ? Math.min(100, (topHero.wins / careerGames) * 100) : 0;
+  const shouldAnimate = reducedMotion !== true;
 
-  // Build item lookup map
-  const itemById = new Map<number, { key: string; dname: string }>();
-  for (const [key, item] of Object.entries(itemConstants ?? {})) {
-    itemById.set(item.id, { key, dname: item.dname });
-  }
+  const heroKey = `npc_dota_hero_${cleanName}`;
+  const abilities = effectiveAbilities?.[heroKey]?.abilities ?? [];
+  const displayAbilities = abilities
+    .filter((a) => !a.includes("hidden") && !a.includes("empty") && !a.includes("attribute"))
+    .slice(0, 4);
 
-  // Stats row columns — parsed: GOLD/MIN + CS + GAMES, unparsed: GAMES only
-  const statCols: { value: string; label: string }[] = isParsed
-    ? [
-        {
-          value:
-            bestHeroMatchDetails!.gpm != null && bestHeroMatchDetails!.gpm > 0
-              ? String(bestHeroMatchDetails!.gpm)
-              : "—",
-          label: "GOLD/MIN",
-        },
-        {
-          value:
-            bestHeroMatchDetails!.lastHits != null
-              ? String(bestHeroMatchDetails!.lastHits)
-              : "—",
-          label: "CS",
-        },
-        { value: topHero.games.toLocaleString(), label: "GAMES" },
-      ]
-    : [{ value: topHero.games.toLocaleString(), label: "GAMES" }];
+  const showItems = bestHeroMatchDetails !== null;
+
+  const { radiantWins, radiantGames, direWins, direGames } = signatureMoves;
+  const radiantLosses = radiantGames - radiantWins;
+  const direLosses = direGames - direWins;
+  const radiantWinPct = radiantGames > 0 ? Math.round((radiantWins / radiantGames) * 100) : 0;
+  const direWinPct = direGames > 0 ? Math.round((direWins / direGames) * 100) : 0;
+
+  const fmt = (v: number | null | undefined): string =>
+    v != null ? v.toLocaleString() : "—";
+
+  const fmtDamage = (v: number): string =>
+    !v ? '—' : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);
 
   return (
     <div
       style={{
         width: "100%",
-        height: "100%",
-        position: "relative",
-        overflow: "hidden",
-        backgroundColor: "#000000",
+        minHeight: "100%",
+        backgroundColor: "#0a0c0f",
+        backgroundImage: [
+          "repeating-linear-gradient(rgba(255,255,255,0.02) 0px, transparent 1px, transparent 40px)",
+          "repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0px, transparent 1px, transparent 40px)",
+        ].join(", "),
+        border: "1px solid rgba(255,255,255,0.08)",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        padding: "20px 22px 24px",
+        overflow: "visible",
+        boxSizing: "border-box",
       }}
     >
-      {/* 1. Hero portrait — top ~40% */}
+      {/* SECTION 1 — Two-column header */}
+      <div style={{ display: "flex", alignItems: "stretch" }}>
+        {/* Left: hero portrait (35%) */}
+        <div
+          style={{
+            flex: "0 0 35%",
+            position: "relative",
+            paddingTop: "35%",
+            overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backgroundColor: "#111318",
+          }}
+        >
+          {portraitUrl && (
+            <img
+              src={portraitUrl}
+              alt={topHero.heroName}
+              onError={(e) => { e.currentTarget.style.opacity = "0"; }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          )}
+        </div>
+
+        {/* Right: hero info (65%) */}
+        <div style={{ flex: 1, padding: "10px 12px 8px", display: "flex", flexDirection: "column", minWidth: 0, gap: 6 }}>
+          <p style={{ color: GREY, fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", margin: 0 }}>
+            YOUR MOST PLAYED HERO
+          </p>
+          <h2 style={{ color: "white", fontWeight: 700, fontSize: 22, textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1, margin: 0 }}>
+            {topHero.heroName}
+          </h2>
+
+          {/* K/D/A row */}
+          {bestHeroGame && (
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                {(
+                  [
+                    { v: bestHeroGame.kills,   label: "KILLS",   color: "#9ef01a" },
+                    { v: bestHeroGame.deaths,  label: "DEATHS",  color: "#ef4444" },
+                    { v: bestHeroGame.assists, label: "ASSISTS", color: "white"   },
+                  ] as const
+                ).map(({ v, label, color }) => (
+                  <div key={label} style={{ textAlign: "center" }}>
+                    <p style={{ color, fontSize: 28, fontWeight: 900, lineHeight: 1, margin: 0 }}>{v}</p>
+                    <p style={{ color: GREY, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", margin: 0 }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+              <span
+                style={{
+                  backgroundColor: bestHeroGame.isWin ? "#9ef01a" : "#ef4444",
+                  color: bestHeroGame.isWin ? "#000" : "#fff",
+                  fontSize: 9,
+                  fontWeight: 900,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                  alignSelf: "flex-start",
+                  flexShrink: 0,
+                }}
+              >
+                {bestHeroGame.isWin ? "WIN" : "LOSS"}
+              </span>
+            </div>
+          )}
+
+          {/* Stat row: CS | GPM | XPM | DAMAGE */}
+          {bestHeroGame && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              {(
+                [
+                  { label: "CS",     value: fmt((bestHeroMatchDetails?.lastHits || bestHeroGame.cs) || 0) },
+                  { label: "GPM",    value: fmt((bestHeroMatchDetails?.gpm || bestHeroGame.gpm) || 0) },
+                  { label: "XPM",    value: fmt((bestHeroMatchDetails?.xpm || bestHeroGame.xpm) || 0) },
+                  { label: "DAMAGE", value: fmtDamage((bestHeroMatchDetails?.heroDamage || bestHeroGame.heroDamage) || 0) },
+                ] as const
+              ).map(({ label, value }) => (
+                <div key={label} style={{ textAlign: "center" }}>
+                  <p style={{ color: "white", fontSize: 14, fontWeight: 700, lineHeight: 1, margin: 0 }}>{value}</p>
+                  <p style={{ color: GREY, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", margin: 0 }}>{label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SECTION 2 — Career stats (dark bg) */}
       <div
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "40%",
-          background: "linear-gradient(160deg, #1a0a2e, #0d0d1a)",
-          overflow: "hidden",
+          display: "flex",
+          backgroundColor: "#0d1a26",
+          padding: "10px 16px",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        {cleanName && (
-          <img
-            src={imgUrl}
-            alt={topHero.heroName}
-            onError={(e) => { e.currentTarget.style.opacity = "0"; }}
+        {(
+          [
+            { label: "CAREER GAMES", value: careerGames.toLocaleString(), color: "white" },
+            { label: "WIN RATE",     value: `${topHero.winRate}%`,         color: isGoodWr ? "#9ef01a" : "#ef4444" },
+            { label: "LIFETIME",     value: `${topHero.wins}W ${losses}L`, color: "white" },
+          ] as const
+        ).map((stat, i) => (
+          <div
+            key={stat.label}
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "center 15%",
+              flex: 1,
+              textAlign: "center",
+              borderRight: i < 2 ? "1px solid rgba(255,255,255,0.08)" : undefined,
             }}
-          />
-        )}
-      </div>
-
-      {/* Gradient overlay */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(to top,#000000 0%,#000000 60%,rgba(0,0,0,0.7) 70%,transparent 80%)",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Top branding row */}
-      <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <span style={{ ...BRAND, textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>Dota Wrapped</span>
-        <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 800, textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>2026</span>
-      </div>
-
-      {/* Bottom stats */}
-      <div style={{ position: "relative" }}>
-
-        {/* 2. Hero label + name */}
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 4 }}>
-          Your Most Played Hero
-        </p>
-        <h2 style={{ color: "white", fontSize: 36, fontWeight: 900, lineHeight: 0.95, letterSpacing: "-0.04em", textTransform: "uppercase", marginBottom: 12 }}>
-          {topHero.heroName}
-        </h2>
-
-        {/* 3. Best Game section — hidden entirely if bestHeroGame is null */}
-        {bestHeroGame && (
-          <div style={{ marginBottom: 10 }}>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 6 }}>
-              Best Game
-            </p>
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {/* K / D / A */}
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "#B9FF33", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestHeroGame.kills}</p>
-                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Kills</p>
-                </div>
-                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, paddingBottom: 10 }}>/</span>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "#FF4D30", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestHeroGame.deaths}</p>
-                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Deaths</p>
-                </div>
-                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, paddingBottom: 10 }}>/</span>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em" }}>{bestHeroGame.assists}</p>
-                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Assists</p>
-                </div>
-              </div>
-
-              {/* WIN/LOSS + duration pushed right */}
-              <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                <span style={{
-                  backgroundColor: bestHeroGame.isWin ? "#B9FF33" : "#FF4D30",
-                  color: bestHeroGame.isWin ? "#000" : "#fff",
-                  fontSize: 9, fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase",
-                  padding: "2px 8px", borderRadius: 10,
-                }}>
-                  {bestHeroGame.isWin ? "WIN" : "LOSS"}
-                </span>
-                <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 600 }}>
-                  {bestGameDurationMin}
-                </p>
-              </div>
-            </div>
+          >
+            <p style={{ color: stat.color, fontSize: 13, fontWeight: 800, lineHeight: 1, margin: "0 0 3px" }}>{stat.value}</p>
+            <p style={{ color: GREY, fontSize: 8, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", margin: 0 }}>{stat.label}</p>
           </div>
-        )}
+        ))}
+      </div>
 
-        {/* 4. Stats row */}
-        <div style={{ display: "flex", gap: 0, marginBottom: 10, borderTop: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingTop: 8, paddingBottom: 8 }}>
-          {statCols.map((stat, i) => (
-            <div key={stat.label} style={{ flex: 1, textAlign: "center", borderRight: i < statCols.length - 1 ? "1px solid rgba(255,255,255,0.08)" : undefined }}>
-              <p style={{ color: "white", fontSize: 15, fontWeight: 800, lineHeight: 1, marginBottom: 3 }}>{stat.value}</p>
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.1em" }}>{stat.label}</p>
+      {/* SECTION 3 — Ability icons (4×44px centered) */}
+      <div style={{ padding: "12px 14px 0" }}>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          {displayAbilities.map((abilityName) => (
+            <div
+              key={abilityName}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.15)",
+                backgroundColor: "rgba(255,255,255,0.05)",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src={`${DOTA_CDN}/apps/dota2/images/dota_react/abilities/${abilityName}.png`}
+                alt={abilityName}
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (!img.dataset.fallback) {
+                    img.dataset.fallback = "1";
+                    img.src = `${DOTA_CDN}/apps/dota2/images/dota2_react/abilities/${abilityName}.png`;
+                  } else {
+                    img.style.display = "none";
+                  }
+                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
             </div>
           ))}
+          {Array.from({ length: Math.max(0, 4 - displayAbilities.length) }).map((_, idx) => (
+            <div
+              key={`ph-${idx}`}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.15)",
+                backgroundColor: "rgba(255,255,255,0.05)",
+                flexShrink: 0,
+              }}
+            />
+          ))}
         </div>
+      </div>
 
-        {/* 5. Items grid — always rendered, placeholders when unparsed */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, marginBottom: 10 }}>
-          {Array.from({ length: 6 }).map((_, idx) => {
-            if (isParsed) {
-              const itemId = bestHeroMatchDetails!.items[idx];
-              const entry = itemId != null && itemId !== 0 ? itemById.get(itemId) : undefined;
+      {/* SECTION 4 — Best game items (2×3) */}
+      {showItems && (
+        <div style={{ padding: "10px 14px 0" }}>
+          <p style={{ color: GOLD, fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 6px" }}>
+            BEST GAME ITEMS
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 6,
+            }}
+          >
+            {bestHeroMatchDetails!.items.map((itemId, i) => {
+              const itemName = itemId === 0 ? null : getItemName(itemId);
+              if (itemName === null) {
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      height: 64,
+                      borderRadius: 6,
+                      backgroundColor: "#0d1a26",
+                    }}
+                  />
+                );
+              }
               return (
-                <div key={idx} style={{ position: "relative", width: "100%", paddingTop: "66%", height: 0 }}>
-                  {entry ? (
-                    <img
-                      src={`${DOTA_CDN}/apps/dota2/images/dota_react/items/${entry.key}.png`}
-                      alt={entry.dname}
-                      title={entry.dname}
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 4 }}
-                    />
-                  ) : (
-                    <div style={{ position: "absolute", inset: 0, backgroundColor: "#1a1a2e", borderRadius: 4 }} />
-                  )}
+                <div key={i} style={{ overflow: "hidden", borderRadius: 4 }}>
+                  <img
+                    src={`${ITEM_CDN}/${itemName}.png`}
+                    alt={itemName}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    style={{ width: "100%", height: 64, objectFit: "cover", display: "block" }}
+                  />
                 </div>
               );
-            }
-            // Unparsed placeholder
-            return (
-              <div key={idx} style={{ position: "relative", width: "100%", paddingTop: "66%", height: 0 }}>
-                <div style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: "#1a1a2e",
-                  borderRadius: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: 0.3,
-                }}>
-                  <span style={{ fontSize: 12, lineHeight: 1 }}>🔒</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 6. WIN RATE ON THIS HERO bar */}
-        <div style={{ marginBottom: 4 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
-            <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 8, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-              Win Rate on This Hero
-            </p>
-            <p style={{ color: isGoodWr ? "#B9FF33" : "#FF4D30", fontSize: 13, fontWeight: 700 }}>
-              {topHero.winRate}%
-            </p>
-          </div>
-          <div style={{ height: 5, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 3 }}>
-            <div style={{ height: "100%", width: `${Math.min(wr, 100)}%`, backgroundColor: isGoodWr ? "#B9FF33" : "#FF4D30", borderRadius: 3 }} />
+            })}
           </div>
         </div>
+      )}
 
-        {/* 7. LIFETIME ON THIS HERO — W/L */}
-        <div style={{ marginTop: 10, marginBottom: 6 }}>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", fontVariant: "small-caps", marginBottom: 6 }}>
-            Lifetime on This Hero
+      {/* SECTION 5 — HERO STATS panel (Dota scoreboard style) */}
+      <div
+        style={{
+          margin: "12px 14px 0",
+          backgroundColor: "#0a0f0a",
+          border: "1px solid rgba(158,240,26,0.15)",
+          borderRadius: 4,
+          padding: "10px 12px 12px",
+        }}
+      >
+        {/* Header row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <p style={{ color: GOLD, fontSize: 9, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>
+            ◆ HERO STATS
           </p>
-          <div style={{ display: "flex", gap: 24 }}>
-            <div>
-              <p style={{ color: "#B9FF33", fontSize: 20, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>
-                {topHero.wins.toLocaleString()}
-              </p>
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Wins</p>
-            </div>
-            <div>
-              <p style={{ color: "#FF4D30", fontSize: 20, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>
-                {(topHero.games - topHero.wins).toLocaleString()}
-              </p>
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Losses</p>
-            </div>
+          <p style={{ color: isGoodWr ? "#9ef01a" : "#ef4444", fontSize: 12, fontWeight: 700, lineHeight: 1, margin: 0 }}>
+            {topHero.winRate}%
+          </p>
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, backgroundColor: "rgba(200,168,75,0.15)", marginBottom: 10 }} />
+
+        {/* VICTORIES stat row */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+            <p style={{ color: "#8a9bb0", fontSize: 9, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", margin: 0 }}>VICTORIES</p>
+            <p style={{ color: "white", fontSize: 18, fontWeight: 700, lineHeight: 1, margin: 0 }}>{topHero.wins.toLocaleString()}</p>
+          </div>
+          <div style={{ height: 4, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+            <motion.div
+              initial={{ width: shouldAnimate ? "0%" : `${vicPct}%` }}
+              animate={{ width: `${vicPct}%` }}
+              transition={{ duration: 0.8, ease: [0.33, 1, 0.68, 1] }}
+              style={{ height: "100%", background: "linear-gradient(90deg, #4a7c1a, #9ef01a)", borderRadius: 2 }}
+            />
           </div>
         </div>
 
-        {/* 8. DOTAWRAPPED.GG watermark */}
-        <p style={{ ...BRAND, textAlign: "center", color: "rgba(255,255,255,0.22)", marginTop: 4 }}>
-          dotawrapped.gg
-        </p>
+        {/* WIN RATE stat row */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+            <p style={{ color: "#8a9bb0", fontSize: 9, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", margin: 0 }}>WIN RATE</p>
+            <p style={{ color: isGoodWr ? "#9ef01a" : "#ef4444", fontSize: 18, fontWeight: 700, lineHeight: 1, margin: 0 }}>{topHero.winRate}%</p>
+          </div>
+          <div style={{ height: 4, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+            <motion.div
+              initial={{ width: shouldAnimate ? "0%" : `${wr}%` }}
+              animate={{ width: `${wr}%` }}
+              transition={{ duration: 0.8, ease: [0.33, 1, 0.68, 1], delay: 0.1 }}
+              style={{ height: "100%", background: "linear-gradient(90deg, #4a7c1a, #9ef01a)", borderRadius: 2 }}
+            />
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, backgroundColor: "rgba(200,168,75,0.15)", margin: "10px 0 8px" }} />
+
+        {/* RADIANT vs DIRE */}
+        <div style={{ display: "flex" }}>
+          {/* RADIANT */}
+          <div style={{ flex: 1, paddingLeft: 8, paddingRight: 4, borderLeft: "2px solid #9ef01a" }}>
+            <p style={{ color: "#9ef01a", fontSize: 9, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 3px" }}>▲ RADIANT</p>
+            <p style={{ color: "white", fontSize: 16, fontWeight: 700, lineHeight: 1, margin: "0 0 2px" }}>{radiantWins}W / {radiantLosses}L</p>
+            <p style={{ color: "#9ef01a", fontSize: 10, margin: 0 }}>{radiantWinPct}% win rate</p>
+          </div>
+
+          {/* Vertical gold divider */}
+          <div style={{ width: 1, backgroundColor: `${GOLD}33`, margin: "0 8px", flexShrink: 0 }} />
+
+          {/* DIRE */}
+          <div style={{ flex: 1, paddingLeft: 8, paddingRight: 4, borderLeft: "2px solid #ef4444" }}>
+            <p style={{ color: "#ef4444", fontSize: 9, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 3px" }}>▼ DIRE</p>
+            <p style={{ color: "white", fontSize: 16, fontWeight: 700, lineHeight: 1, margin: "0 0 2px" }}>{direWins}W / {direLosses}L</p>
+            <p style={{ color: "#ef4444", fontSize: 10, margin: 0 }}>{direWinPct}% win rate</p>
+          </div>
+        </div>
       </div>
+
+      {/* SECTION 6 — Watermark */}
+      <p
+        style={{
+          color: "rgba(138,155,176,0.25)",
+          fontSize: 7,
+          fontWeight: 700,
+          letterSpacing: "0.15em",
+          textTransform: "uppercase",
+          textAlign: "center",
+          padding: "10px 0 14px",
+          margin: 0,
+        }}
+      >
+        DOTAWRAPPED.GG
+      </p>
     </div>
   );
 }
