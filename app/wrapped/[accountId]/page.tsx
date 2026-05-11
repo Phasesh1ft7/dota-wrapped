@@ -143,13 +143,19 @@ export default async function WrappedPage({ params }: Props) {
   for (const m of matchesData.matches ?? []) {
     heroYearCounts[m.hero_id] = (heroYearCounts[m.hero_id] ?? 0) + 1;
   }
-  const topYearEntry = Object.entries(heroYearCounts).sort(([, a], [, b]) => b - a)[0];
+  const topYearEntry = Object.entries(heroYearCounts).filter(([id]) => Number(id) > 0).sort(([, a], [, b]) => b - a)[0];
   const topHeroId = topYearEntry ? Number(topYearEntry[0]) : -1;
-  const mostPlayedHeroCleanName = topHeroId > 0
-    ? (heroMap.get(topHeroId)?.name.replace("npc_dota_hero_", "") ?? "")
+
+  // Fall back to all-time top hero when year matches yield no valid hero
+  const fallbackHeroId = topHeroId > 0
+    ? topHeroId
+    : (matchesData.heroes?.[0] ? Number(matchesData.heroes[0].hero_id) : (matchesData.heroCareerMatches?.[0]?.hero_id ?? -1));
+
+  const mostPlayedHeroCleanName = fallbackHeroId > 0
+    ? (heroMap.get(fallbackHeroId)?.name.replace("npc_dota_hero_", "") ?? "")
     : "";
 
-  const heroRelicsConfig = topHeroId > 0 ? { accountId, heroId: topHeroId } : null;
+  const heroRelicsConfig = fallbackHeroId > 0 ? { accountId, heroId: fallbackHeroId } : null;
 
   // Step 5: render WrappedClient
   return <WrappedClient profile={profile} matchesPromise={Promise.resolve(matchesData)} heroRelicsConfig={heroRelicsConfig} />;
