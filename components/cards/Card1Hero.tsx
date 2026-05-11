@@ -71,10 +71,23 @@ export default function Card1Hero({
   const shouldAnimate = reducedMotion !== true;
 
   const heroKey = `npc_dota_hero_${cleanName}`;
-  const abilities = effectiveAbilities?.[heroKey]?.abilities ?? [];
-  const displayAbilities = abilities
-    .filter((a) => !a.includes("hidden") && !a.includes("empty") && !a.includes("attribute"))
-    .slice(0, 4);
+  const filteredAbilities = (effectiveAbilities?.[heroKey]?.abilities ?? []).filter((a) =>
+    !a.includes("hidden") &&
+    !a.includes("empty") &&
+    !a.includes("attribute") &&
+    !a.includes("innate_") &&
+    !a.includes("intrinsic_") &&
+    !a.endsWith("_cancel") &&
+    !a.endsWith("_stop") &&
+    !a.endsWith("_end") &&
+    !a.endsWith("_release") &&
+    !a.endsWith("_toggle") &&
+    !a.endsWith("_land") &&
+    !a.endsWith("_land_self")
+  );
+  const displayAbilities = filteredAbilities.length <= 4
+    ? filteredAbilities
+    : [...filteredAbilities.slice(0, 3), filteredAbilities[filteredAbilities.length - 1]];
 
   const showItems = bestHeroMatchDetails !== null;
 
@@ -230,35 +243,38 @@ export default function Card1Hero({
       {/* SECTION 3 — Ability icons (4×44px centered) */}
       <div style={{ padding: "12px 14px 0" }}>
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-          {displayAbilities.map((abilityName) => (
-            <div
-              key={abilityName}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.15)",
-                backgroundColor: "rgba(255,255,255,0.05)",
-                overflow: "hidden",
-                flexShrink: 0,
-              }}
-            >
-              <img
-                src={`${DOTA_CDN}/apps/dota2/images/dota_react/abilities/${abilityName}.png`}
-                alt={abilityName}
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (!img.dataset.fallback) {
-                    img.dataset.fallback = "1";
-                    img.src = `${DOTA_CDN}/apps/dota2/images/dota2_react/abilities/${abilityName}.png`;
-                  } else {
-                    img.style.display = "none";
-                  }
+          {displayAbilities.map((ability) => {
+            console.log('[ability icon src]', `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${ability}.png`);
+            return (
+              <div
+                key={ability}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 6,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  overflow: "hidden",
+                  flexShrink: 0,
                 }}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            </div>
-          ))}
+              >
+                <img
+                  src={`${DOTA_CDN}/apps/dota2/images/dota_react/abilities/${ability}.png`}
+                  alt={ability}
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (!img.dataset.fallback) {
+                      img.dataset.fallback = "1";
+                      img.src = `${DOTA_CDN}/apps/dota2/images/dota2_react/abilities/${ability}.png`;
+                    } else {
+                      img.style.display = "none";
+                    }
+                  }}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            );
+          })}
           {Array.from({ length: Math.max(0, 4 - displayAbilities.length) }).map((_, idx) => (
             <div
               key={`ph-${idx}`}

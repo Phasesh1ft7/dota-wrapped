@@ -80,11 +80,23 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
   }, [heroRelicsConfig?.accountId, heroRelicsConfig?.heroId, mostPlayedHeroCleanName]);
 
   const effectiveAbilities = heroAbilitiesProp ?? heroAbilitiesFallback;
-  const heroKey = `npc_dota_hero_${mostPlayedHeroCleanName}`;
-  const rawAbilities = effectiveAbilities?.[heroKey]?.abilities ?? [];
-  const displayAbilities = rawAbilities
-    .filter((a: string) => !a.includes("hidden") && !a.includes("empty") && !a.includes("attribute"))
-    .slice(0, 4);
+  const filtered = (effectiveAbilities?.[`npc_dota_hero_${mostPlayedHeroCleanName}`]?.abilities ?? []).filter((a: string) =>
+    !a.includes("hidden") &&
+    !a.includes("empty") &&
+    !a.includes("attribute") &&
+    !a.includes("innate_") &&
+    !a.includes("intrinsic_") &&
+    !a.endsWith("_cancel") &&
+    !a.endsWith("_stop") &&
+    !a.endsWith("_end") &&
+    !a.endsWith("_release") &&
+    !a.endsWith("_toggle") &&
+    !a.endsWith("_land") &&
+    !a.endsWith("_land_self")
+  );
+  const displayAbilities = filtered.length <= 4
+    ? filtered
+    : [...filtered.slice(0, 3), filtered[filtered.length - 1]];
 
   const cdnSlug = HERO_CDN_SLUG[mostPlayedHeroCleanName] ?? mostPlayedHeroCleanName;
   const heroVertUrl = mostPlayedHeroCleanName
@@ -304,7 +316,15 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
                     <img
                       src={`${DOTA_CDN}/apps/dota2/images/dota_react/abilities/${ability}.png`}
                       alt={ability}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      onError={(e) => {
+                        const img = e.currentTarget as HTMLImageElement;
+                        if (!img.dataset.fallback) {
+                          img.dataset.fallback = "1";
+                          img.src = `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${ability}.png?v=2`;
+                        } else {
+                          img.style.display = "none";
+                        }
+                      }}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   </div>
@@ -388,7 +408,17 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
                   </p>
                 )}
               </div>
-            ) : null}
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 0", opacity: 0.5 }}>
+                <div style={{ fontSize: 20 }}>🔒</div>
+                <div style={{ fontSize: 10, color: "#8a9bb0", letterSpacing: 2, textTransform: "uppercase", textAlign: "center", fontStyle: "italic" }}>
+                  Relics unavailable — match data not parsed
+                </div>
+                <div style={{ fontSize: 9, color: "#4a5568", letterSpacing: 1 }}>
+                  Request a parse at opendota.co
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
