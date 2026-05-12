@@ -422,7 +422,7 @@ export default function WrappedGrid({
       case 8: return { headline: tempoStats.fastestWin ?? "—",                                         secondary: `${tempoStats.totalHoursThisYear}h this year` };
       case 6: return { headline: peerName,                                                             secondary: topPeer ? `${topPeer.with_games} games together` : "" };
       case 3: return { headline: playStyleStats ? `${playStyleStats.avgGpm} GPM` : "—",               secondary: "PLAY STYLE PROFILE" };
-      case 9: return { headline: `${matches.length}`,                                                  secondary: `${yearWinRate}% win rate` };
+      case 9: return { headline: `${yearInNumbers.totalGames}`,                                        secondary: `${yearWinRate}% win rate` };
     }
   }
 
