@@ -20,20 +20,37 @@ interface Props {
   playerName: string;
 }
 
-function SectionHeader({ label }: { label: string }) {
+function SectionHeader({ label, subtitle }: { label: string; subtitle?: string }) {
   return (
-    <p
-      style={{
-        color: "#c8a84b",
-        fontWeight: 700,
-        fontSize: 9,
-        letterSpacing: "0.2em",
-        textTransform: "uppercase",
-        margin: "0 0 2px",
-      }}
-    >
-      {label}
-    </p>
+    <div style={{ margin: "0 0 2px" }}>
+      <p
+        style={{
+          color: "#c8a84b",
+          fontWeight: 700,
+          fontSize: 9,
+          letterSpacing: "0.2em",
+          textTransform: "uppercase",
+          margin: 0,
+        }}
+      >
+        {label}
+      </p>
+      {subtitle && (
+        <p
+          style={{
+            fontSize: 9,
+            color: "#8a9bb0",
+            letterSpacing: 2,
+            fontWeight: 600,
+            marginTop: 2,
+            margin: 0,
+            textTransform: "uppercase",
+          }}
+        >
+          {subtitle}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -218,7 +235,7 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
           }}
         >
           {/* Section A — Averages */}
-          <SectionHeader label="Averages" />
+          <SectionHeader label="Averages" subtitle="2026 SEASON" />
           <EmojiRow emoji="⚔️" label="Avg GPM"       value={avgGpm.toLocaleString()} />
           <EmojiRow emoji="✨" label="Avg XPM"        value={avgXpm.toLocaleString()} />
           <EmojiRow emoji="🌾" label="Avg Last Hits"  value={avgLastHits.toLocaleString()} />
@@ -232,7 +249,7 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
           />
 
           {/* Section B — Career Highlights */}
-          <SectionHeader label="Career Highlights" />
+          <SectionHeader label="Career Highlights" subtitle="ALL TIME" />
           <EmojiRow emoji="🚚" label="Couriers Killed"  value={couriersKilled.toLocaleString()} />
           <EmojiRow emoji="⚡" label="Stuns Applied"    value={fmtStuns(stunsApplied)} />
           <EmojiRow emoji="🏰" label="Tower Kills"      value={towerKills.toLocaleString()} />
