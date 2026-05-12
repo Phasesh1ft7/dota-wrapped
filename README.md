@@ -38,6 +38,8 @@ A Spotify Wrapped-style annual stats experience for Dota 2. Enter your Steam ID 
 ---
 
 ## Architecture
+
+```
 app/
 ├── page.tsx                    # Landing page — Steam ID input, useActionState form
 ├── actions/
@@ -46,29 +48,32 @@ app/
 │   └── [accountId]/
 │       └── page.tsx            # Server component — data fetch + Redis cache layer
 └── api/
-└── og/
-└── route.tsx           # Dynamic OG image (Edge runtime, 1200×630)
+    └── og/
+        └── route.tsx           # Dynamic OG image (Edge runtime, 1200×630)
 components/
 ├── WrappedClient.tsx           # Client wrapper — receives server data, owns card state
 ├── WrappedGrid.tsx             # Card grid — tile rendering, modal open logic
 ├── CardModal.tsx               # Expanded card modal with exit animation
 ├── HeroMosaicBackground.tsx    # Landing page hero grid background
 └── cards/
-├── Card1Hero.tsx           # Hero DNA
-├── Card5Summary.tsx        # Win Rate
-├── Card4MatchupB.tsx       # Signature Moves
-├── Card8BestMonth.tsx      # Tempo Stats
-├── Card6Teammate.tsx       # Teammate Chemistry
-├── CardPlayStyle.tsx       # Play Style (radar chart)
-├── CardQuiz.tsx            # Quiz
-└── [Rank card]             # Rank
+    ├── Card1Hero.tsx           # Hero DNA
+    ├── Card5Summary.tsx        # Win Rate
+    ├── Card4MatchupB.tsx       # Signature Moves
+    ├── Card8BestMonth.tsx      # Tempo Stats
+    ├── Card6Teammate.tsx       # Teammate Chemistry
+    ├── CardPlayStyle.tsx       # Play Style (radar chart)
+    ├── CardQuiz.tsx            # Quiz
+    └── [Rank card]             # Rank
 lib/
 ├── opendota.ts                 # OpenDota API — all fetch logic, 20s timeout
 ├── stratz.ts                   # STRATZ GraphQL API — fallback data
 ├── transforms.ts               # Data transformation — getYearInNumbers, getSignatureMoves, computePlaystyle, etc.
 └── cache.ts                    # Upstash Redis — get/set with 6hr TTL
+```
 
 ### Data Flow
+
+```
 User enters Steam ID / URL
 ↓
 app/actions/resolveSteamId.ts   (Steam Web API vanity resolution if needed)
@@ -82,6 +87,7 @@ fetchPlayerProfile + fetchPlayerMatches (Promise.allSettled, parallel)
 lib/transforms.ts — shape raw API data into card-ready structures
 ↓
 WrappedClient.tsx → WrappedGrid.tsx → individual card components
+```
 
 ---
 
