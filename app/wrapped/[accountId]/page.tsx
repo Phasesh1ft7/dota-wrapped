@@ -223,7 +223,6 @@ export default async function WrappedPage({ params, searchParams }: Props) {
   }
 
   const profile = profileResult.value;
-  console.log('[wlYear]', profile?.wlYear);
   const avatar = profile.player?.profile?.avatarfull ?? null;
   const name = profile.player?.profile?.personaname ?? null;
 
