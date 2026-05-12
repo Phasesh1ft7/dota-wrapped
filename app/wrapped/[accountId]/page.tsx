@@ -133,9 +133,9 @@ function ErrorScreen({
         {type === "timeout" ? (
           <>
             <p style={{ fontSize: 48, margin: 0 }}>⏱️</p>
-            <h1 style={{ color: "white", fontSize: 20, fontWeight: 700, margin: 0 }}>Couldn&apos;t Load Data</h1>
+            <h1 style={{ color: "white", fontSize: 20, fontWeight: 700, margin: 0 }}>OpenDota is Slow Right Now</h1>
             <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-              The data provider is taking too long to respond. Try again in a moment.
+              Their servers are taking too long to respond. Try again in a minute — your data will load.
             </p>
             <a
               href={`/wrapped/${accountId}`}

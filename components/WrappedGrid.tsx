@@ -341,8 +341,6 @@ export default function WrappedGrid({
 }: Props) {
   const [openCard, setOpenCard] = useState<CardId | null>(null);
   const [hoveredTile, setHoveredTile] = useState<CardId | null>(null);
-  const [tappedTile, setTappedTile] = useState<CardId | null>(null);
-  const [flashedTile, setFlashedTile] = useState<CardId | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const shouldReduceMotion = useReducedMotion() ?? false;
 
@@ -452,26 +450,14 @@ export default function WrappedGrid({
       case 9:
         return (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 0, pointerEvents: "none" }}>
-            <span style={{ fontSize: 64, fontWeight: 900, color: "white", opacity: 0.08, lineHeight: 1 }}>{matches.length}</span>
+            <span style={{ fontSize: 64, fontWeight: 900, color: "white", opacity: 0.08, lineHeight: 1 }}>{yearInNumbers.totalGames}</span>
           </div>
         );
     }
   }
 
-  // First tap on mobile reveals secondary stat; second tap opens modal.
-  // On desktop, hover already reveals, so click goes straight to modal.
   function handleActivate(id: CardId) {
-    if (!shouldReduceMotion) {
-      setFlashedTile(id);
-      setTimeout(() => setFlashedTile(null), 250);
-    }
-    const isRevealed = hoveredTile === id || tappedTile === id;
-    if (isRevealed) {
-      setTappedTile(null);
-      setOpenCard(id);
-    } else {
-      setTappedTile(id);
-    }
+    setOpenCard(id);
   }
 
   function renderCard(id: CardId, isExporting?: boolean) {
@@ -648,7 +634,7 @@ export default function WrappedGrid({
       >
         {TILES.map((tile) => {
           const stats = tileStats(tile.id);
-          const isRevealed = hoveredTile === tile.id || tappedTile === tile.id;
+          const isRevealed = hoveredTile === tile.id;
           const delay = shouldReduceMotion ? 0 : tile.staggerIdx * 0.04;
           const accent = tile.id === 2 ? rankColor : tile.accent;
           const gradient = tile.id === 2
@@ -689,7 +675,6 @@ export default function WrappedGrid({
               <CornerBrackets
                 color={accent}
                 pulse={!shouldReduceMotion && hoveredTile === tile.id}
-                flash={!shouldReduceMotion && flashedTile === tile.id}
               />
 
               {/* Accent stripe */}

@@ -258,7 +258,7 @@ export interface PlayerData extends ProfileData, MatchesData {}
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -451,10 +451,13 @@ async function resolveBestHeroMatchDetails(
   // Fetch career hero matches (no date filter, high limit for radiant/dire stats)
   let heroMatches: Match[] = [];
   try {
+    const heroController = new AbortController();
+    const heroTimeout = setTimeout(() => heroController.abort(), 15000);
     const heroMatchesRes = await fetch(
       `${BASE_URL}/players/${accountId}/matches?hero_id=${topHeroId}&limit=200`,
-      { next: { revalidate: 3600 } },
+      { signal: heroController.signal, next: { revalidate: 3600 } },
     );
+    clearTimeout(heroTimeout);
     heroMatches = heroMatchesRes.ok ? (await heroMatchesRes.json() as Match[]) : [];
   } catch {
     // fall through to yearly matches fallback
@@ -638,10 +641,13 @@ export async function fetchHeroRelicMatches(
   heroId: number,
   limit = 8,
 ): Promise<{ aggregated: { ability_uses: Record<string, number>; damage_inflictor: Record<string, number> }; parsedCount: number }> {
+  const relicController = new AbortController();
+  const relicTimeout = setTimeout(() => relicController.abort(), 15000);
   const matchList = await fetch(
     `${BASE_URL}/players/${accountId}/matches?hero_id=${heroId}&limit=${limit}`,
-    { next: { revalidate: 3600 } },
-  ).then((r) => r.json());
+    { signal: relicController.signal, next: { revalidate: 3600 } },
+  ).then((r) => { clearTimeout(relicTimeout); return r.json(); })
+   .catch(() => { clearTimeout(relicTimeout); return []; });
 
   const matchIds: number[] = (matchList as Array<{ match_id: number }>).map((m) => m.match_id);
 

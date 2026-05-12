@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useActionState } from "react";
 import { useRouter } from "next/navigation";
+import { resolveSteamId } from "@/app/actions/resolveSteamId";
+import type { ResolveResult } from "@/app/actions/resolveSteamId";
 import { motion, useReducedMotion } from "framer-motion";
 import HeroMosaicBackground from "@/components/HeroMosaicBackground";
 import GoldRain from "@/components/GoldRain";
@@ -69,11 +71,6 @@ const CSS = `
     line-height: 0.9;
     letter-spacing: -2px;
     margin: 0;
-    color: white;
-    position: relative;
-    text-shadow: -3px 0 rgba(255,0,0,0.7), 3px 0 rgba(0,255,255,0.7);
-    filter: drop-shadow(0 0 20px rgba(255,255,255,0.15));
-    animation: chromaFlicker 3s ease-in-out infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -113,7 +110,7 @@ const CSS = `
   .lp-input {
     flex: 1;
     background: #111111;
-    border: 1px solid rgba(74,144,217,0.3);
+    border: 1px solid rgba(255,255,255,0.15);
     border-right: none;
     border-radius: 8px 0 0 8px;
     padding: 14px 20px;
@@ -140,6 +137,7 @@ const CSS = `
     transition: opacity 0.15s;
   }
   .lp-btn:hover { opacity: 0.85; }
+  .lp-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .lp-hint {
     color: #7a9bb5;
@@ -188,22 +186,14 @@ const CSS = `
 
 export default function HomePage() {
   const router = useRouter();
-  const [accountId, setAccountId] = useState("");
-  const [error, setError] = useState("");
+  const [state, formAction, isPending] = useActionState<ResolveResult | null, FormData>(resolveSteamId, null);
   const shouldReduceMotion = useReducedMotion() ?? false;
 
-  function handleSubmit() {
-    const trimmed = accountId.trim();
-    if (!trimmed || !/^\d+$/.test(trimmed)) {
-      setError("Invalid ID — numbers only");
-      return;
+  useEffect(() => {
+    if (state?.accountId) {
+      router.push(`/wrapped/${state.accountId}`);
     }
-    router.push(`/wrapped/${trimmed}`);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") handleSubmit();
-  }
+  }, [state, router]);
 
   return (
     <>
@@ -272,7 +262,14 @@ export default function HomePage() {
             </motion.p>
             <motion.p
               className="lp-wrapped"
-              style={{ position: "relative", zIndex: 1 }}
+              style={{
+                position: "relative",
+                zIndex: 1,
+                background: "linear-gradient(135deg, #4a90d9 0%, #c8a84b 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
               initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -295,7 +292,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
-            Your Dota 2 year in review.
+            How bad was your 2026, really?
           </motion.p>
 
           <motion.div
@@ -305,42 +302,25 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            <input
-              className="lp-input"
-              type="text"
-              inputMode="numeric"
-              placeholder="Steam ID or account ID"
-              value={accountId}
-              onChange={(e) => {
-                const val = e.target.value.trim();
-                setAccountId(val);
-                if (error) setError("");
-                if (/^\d{8,}$/.test(val)) {
-                  router.prefetch(`/wrapped/${val}`);
-                }
-              }}
-              onKeyDown={handleKeyDown}
-            />
-            <button className="lp-btn" onClick={handleSubmit}>
-              GO
-            </button>
+            <form action={formAction} style={{ display: "contents" }}>
+              <input
+                className="lp-input"
+                type="text"
+                name="steamInput"
+                placeholder="Steam ID, Steam64 or profile URL"
+                autoComplete="off"
+              />
+              <button className="lp-btn" type="submit" disabled={isPending}>
+                {isPending ? "RESOLVING..." : "UNWRAP"}
+              </button>
+            </form>
           </motion.div>
 
-          <p className="lp-hint" style={{ position: "relative", zIndex: 1 }}>Find your ID at steamid.io</p>
-          {error && (
-            <p style={{ color: "#FF4D30", fontSize: 13, marginTop: 6, position: "relative", zIndex: 1 }}>{error}</p>
+          {state?.error && (
+            <p style={{ color: "#ef4444", fontSize: 13, marginTop: 8, position: "relative", zIndex: 1 }}>{state.error}</p>
           )}
 
-          <motion.div
-            className="lp-pills"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {["8 CARDS", "LIVE STATS", "SHAREABLE"].map((label) => (
-              <span key={label} className="lp-pill">{label}</span>
-            ))}
-          </motion.div>
+
         </main>
 
         <p className="lp-brand">Dotawrapped.gg</p>
