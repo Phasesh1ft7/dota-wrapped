@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 interface Props {
   onClose: () => void;
-  children: React.ReactNode;
+  children: React.ReactNode | ((isExporting: boolean) => React.ReactNode);
 }
 
 export default function CardModal({ onClose, children }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
   const [showScanLine, setShowScanLine] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const shouldReduceMotion = useReducedMotion() ?? false;
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function CardModal({ onClose, children }: Props) {
 
   async function handleDownload() {
     if (!cardRef.current) return;
+    flushSync(() => setIsExporting(true));
     const html2canvas = (await import("html2canvas")).default;
     const canvas = await html2canvas(cardRef.current, {
       useCORS: true,
@@ -49,6 +52,7 @@ export default function CardModal({ onClose, children }: Props) {
     link.download = "dota-wrapped.png";
     link.href = canvas.toDataURL("image/png");
     link.click();
+    setIsExporting(false);
   }
 
   return (
@@ -119,19 +123,21 @@ export default function CardModal({ onClose, children }: Props) {
                 ? { duration: 0 }
                 : { duration: 0.25, times: [0, 0.6, 1], ease: "easeOut" }
             }
+            className="card-modal-scroll"
             style={{
               width: 390,
               maxWidth: "calc(100vw - 40px)",
-              height: 690,
+              minHeight: 500,
+              maxHeight: "85vh",
               borderRadius: 20,
-              overflow: "hidden",
+              overflowY: "auto",
               flexShrink: 0,
               marginTop: 48,
               position: "relative",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {children}
+            {typeof children === "function" ? children(isExporting) : children}
             {!shouldReduceMotion && showScanLine && (
               <div
                 className="scan-line"

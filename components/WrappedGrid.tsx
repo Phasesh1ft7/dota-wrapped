@@ -472,7 +472,7 @@ export default function WrappedGrid({
     }
   }
 
-  function renderCard(id: CardId) {
+  function renderCard(id: CardId, isExporting?: boolean) {
     switch (id) {
       case 1: return (
         <CardErrorBoundary>
@@ -493,6 +493,7 @@ export default function WrappedGrid({
             profile={profile} heroStats={heroStats} matches={matches}
             heroes={heroList ?? []}
             totalHours={totalHours} yearWinRate={yearWinRate} totalGames={totalGames}
+            isExporting={isExporting}
           />
         </CardErrorBoundary>
       );
@@ -816,7 +817,7 @@ export default function WrappedGrid({
       {/* Modal */}
       {openCard !== null && (
         <CardModal key={openCard} onClose={() => setOpenCard(null)}>
-          {renderCard(openCard)}
+          {(isExporting) => renderCard(openCard, isExporting)}
         </CardModal>
       )}
     </div>

@@ -14,6 +14,7 @@ interface Props {
   totalHours: number;
   yearWinRate: string;
   totalGames: number;
+  isExporting?: boolean;
 }
 
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -49,6 +50,7 @@ export default function Card5Summary({
   totalHours,
   yearWinRate,
   totalGames,
+  isExporting = false,
 }: Props) {
   const wins = profile.wl?.win ?? 0;
   const losses = profile.wl?.lose ?? 0;
@@ -73,49 +75,36 @@ export default function Card5Summary({
       .map(([, { wins: w, total, monthIdx }]) => ({
         month: MONTH_SHORT[monthIdx],
         wr: Math.round((w / total) * 100),
-      }));
+        total,
+      }))
+      .filter((d) => d.total >= 3);
   })();
 
   const hasChartData = chartData.length >= 3;
+  const winRateValues = chartData.map((d) => d.wr);
+  const nonZeroWR = winRateValues.filter((v) => v > 0);
+  const minWR = nonZeroWR.length > 0 ? Math.max(0, Math.floor(Math.min(...nonZeroWR) / 10) * 10 - 10) : 0;
+  const maxWR = winRateValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...winRateValues) / 10) * 10 + 10) : 100;
+  const chartDomain: [number, number] = nonZeroWR.length === 0 ? [0, 100] : [minWR, maxWR];
 
   const recentMatches = [...matches]
     .sort((a, b) => b.start_time - a.start_time)
-    .slice(0, 20);
+    .slice(0, 5);
 
   return (
     <div
       style={{
         width: "100%",
-        height: "100%",
+        minHeight: "100%",
         backgroundColor: "#000000",
         position: "relative",
-        overflow: "hidden",
+        overflow: "visible",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         padding: "20px 28px 0 28px",
       }}
     >
-      {/* 2026 rotated */}
-      <span
-        style={{
-          position: "absolute",
-          right: 12,
-          top: "20%",
-          transform: "rotate(90deg)",
-          transformOrigin: "center center",
-          fontSize: 10,
-          letterSpacing: "0.3em",
-          opacity: 0.3,
-          color: "white",
-          pointerEvents: "none",
-          whiteSpace: "nowrap",
-          zIndex: 2,
-        }}
-      >
-        2026
-      </span>
-
       {/* SVG scribble */}
       <svg
         viewBox="0 0 300 80"
@@ -133,53 +122,12 @@ export default function Card5Summary({
         <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
       </svg>
 
-      {/* Share button */}
-      <button
-        onClick={() => navigator.clipboard?.writeText(shareUrl()).catch(() => {})}
-        style={{
-          position: "absolute",
-          bottom: 44,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 160,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: "white",
-          color: "black",
-          fontSize: 13,
-          fontWeight: 600,
-          border: "none",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          zIndex: 5,
-        }}
-      >
-        Share this story
-      </button>
-
-      {/* DOTA WRAPPED bottom-left */}
-      <p
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: 28,
-          fontSize: 10,
-          letterSpacing: "0.15em",
-          opacity: 0.35,
-          color: "white",
-          textTransform: "uppercase",
-          margin: 0,
-        }}
-      >
-        Dota Wrapped
-      </p>
 
       {/* ── Top label ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexShrink: 0 }}>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase" }}>
           Your 2026 Dota Wrapped
         </p>
-        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 800 }}>2026</span>
       </div>
 
       {/* ── W/L + Win rate OR stats-unavailable fallback ── */}
@@ -216,7 +164,7 @@ export default function Card5Summary({
 
           {/* Hero chips (top 3, 56×70) */}
           {top5.length > 0 && (
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", flexDirection: "row", gap: 8, alignItems: "center", marginTop: 8, marginBottom: 8, flexShrink: 0 }}>
               {top5.slice(0, 3).map((hero) => {
                 const heroData = profile.heroList?.find((h) => h.id === hero.hero_id);
                 const cleanName = heroData?.name.replace("npc_dota_hero_", "") ?? "";
@@ -224,20 +172,19 @@ export default function Card5Summary({
                   <div
                     key={hero.hero_id}
                     style={{
-                      width: 56,
-                      height: 70,
-                      borderRadius: 8,
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
                       overflow: "hidden",
-                      position: "relative",
                       flexShrink: 0,
-                      border: "1px solid rgba(255,255,255,0.12)",
+                      border: "1px solid rgba(255,255,255,0.15)",
                     }}
                   >
                     {cleanName && (
                       <img
                         src={`/api/hero-image?hero=${cleanName}`}
                         alt={hero.heroName}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       />
                     )}
                   </div>
@@ -273,7 +220,7 @@ export default function Card5Summary({
                 height={14}
               />
               <YAxis
-                domain={[0, 100]}
+                domain={chartDomain}
                 tick={{ fontSize: 12, fill: '#a3a3a3' }}
                 axisLine={false}
                 tickLine={false}
@@ -299,6 +246,9 @@ export default function Card5Summary({
 
       {/* ── Hero pool bars ── */}
       <div style={{ flexShrink: 0 }}>
+        <p style={{ color: "#8a9bb0", fontSize: 8, letterSpacing: 1, fontStyle: "italic", textAlign: "right", marginBottom: 4, marginTop: 0 }}>
+          BAR WIDTH = WIN RATE %
+        </p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" }}>
             Your Hero Pool
@@ -342,7 +292,7 @@ export default function Card5Summary({
         <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
           Recent Matches This Year
         </p>
-        <div style={{ maxHeight: 180, overflowY: "auto" }}>
+        <div>
           {recentMatches.map((m, i) => {
             const win = isMatchWin(m);
             const hero = heroes.find((h) => h.id === m.hero_id);
@@ -436,8 +386,47 @@ export default function Card5Summary({
         ))}
       </div>
 
-      {/* Spacer for share button + DOTA WRAPPED */}
-      <div style={{ height: 88, flexShrink: 0 }} />
+      {/* Share button */}
+      {!isExporting && (
+        <button
+          onClick={() => navigator.clipboard?.writeText(shareUrl()).catch(() => {})}
+          style={{
+            display: "block",
+            width: "fit-content",
+            margin: "12px auto 0",
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: "white",
+            color: "black",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            padding: "0 28px",
+            flexShrink: 0,
+          }}
+        >
+          Share this story
+        </button>
+      )}
+
+      {/* Watermark */}
+      <p
+        style={{
+          textAlign: "center",
+          fontSize: 9,
+          color: "rgba(138,155,176,0.4)",
+          letterSpacing: 3,
+          textTransform: "uppercase",
+          paddingTop: 12,
+          paddingBottom: 8,
+          margin: 0,
+          flexShrink: 0,
+        }}
+      >
+        DOTAWRAPPED.GG
+      </p>
     </div>
   );
 }

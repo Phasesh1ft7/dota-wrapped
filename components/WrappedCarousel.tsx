@@ -797,13 +797,13 @@ export default function WrappedCarousel({
     }
   }
 
-  function renderModalContent(id: ModalId) {
+  function renderModalContent(id: ModalId, isExporting?: boolean) {
     switch (id) {
       case 1: return <ErrorBoundary><Card1Hero profile={profile} topHero={heroStats[0]} bestHeroGame={bestHeroGame} bestHeroMatchDetails={bestHeroMatchDetails} itemConstants={itemConstants} signatureMoves={signatureMoves} yearMatches={matches} yearWinRate={yearWinRate} heroAbilities={heroAbilities ?? null} /></ErrorBoundary>;
       case 2: return <ErrorBoundary><CardRank rankInfo={rankInfo} playerName={playerName} /></ErrorBoundary>;
       case 3: return <ErrorBoundary><CardPlayStyle playStyleStats={playStyleStats} playerName={playerName} /></ErrorBoundary>;
       case 4: return <ErrorBoundary><Card4MatchupB yearInNumbers={yearInNumbers} playerName={playerName} heroAbilities={heroAbilities} heroRelicsConfig={heroStats[0]?.hero_id && profile.player?.profile?.account_id ? { accountId: String(profile.player.profile.account_id), heroId: heroStats[0].hero_id } : null} /></ErrorBoundary>;
-      case 5: return <ErrorBoundary><Card5Summary profile={profile} heroStats={heroStats} matches={matches} heroes={heroList ?? []} totalHours={totalHours} yearWinRate={yearWinRate} totalGames={totalGames} /></ErrorBoundary>;
+      case 5: return <ErrorBoundary><Card5Summary profile={profile} heroStats={heroStats} matches={matches} heroes={heroList ?? []} totalHours={totalHours} yearWinRate={yearWinRate} totalGames={totalGames} isExporting={isExporting} /></ErrorBoundary>;
       case 6: return <ErrorBoundary><Card6Teammate peers={peers} /></ErrorBoundary>;
       case 8: return <ErrorBoundary><Card8BestMonth tempoStats={tempoStats} /></ErrorBoundary>;
       case 9: return <ErrorBoundary><CardQuiz quizMatches={quizMatches} itemConstants={itemConstants} heroList={heroList} /></ErrorBoundary>;
@@ -901,7 +901,7 @@ export default function WrappedCarousel({
       {/* Modal */}
       {openModal !== null && (
         <CardModal key={openModal} onClose={() => setOpenModal(null)}>
-          {renderModalContent(openModal)}
+          {(isExporting) => renderModalContent(openModal!, isExporting)}
         </CardModal>
       )}
     </div>

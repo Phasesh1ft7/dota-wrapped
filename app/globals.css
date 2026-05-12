@@ -19,6 +19,10 @@ body {
   max-width: 100vw;
 }
 
+/* Card modal scrollbar — hidden but functional */
+.card-modal-scroll::-webkit-scrollbar { display: none; }
+.card-modal-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Respect prefers-reduced-motion for all CSS transitions/animations */
 @media (prefers-reduced-motion: reduce) {
   *,
