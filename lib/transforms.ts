@@ -728,14 +728,14 @@ export interface RankInfo {
 const MEDAL_NAMES = ['', 'Herald', 'Guardian', 'Crusader', 'Archon', 'Legend', 'Ancient', 'Divine', 'Immortal'];
 const STAR_LABELS = ['', 'I', 'II', 'III', 'IV', 'V'];
 const PERCENTILE_LABELS: Record<number, string> = {
-  1: 'Top 92% of all players',
-  2: 'Top 80% of all players',
-  3: 'Top 63% of all players',
-  4: 'Top 42% of all players',
-  5: 'Top 24% of all players',
-  6: 'Top 10% of all players',
-  7: 'Top 3% of all players',
-  8: 'Top 1% of all players',
+  1: 'Top 92%',
+  2: 'Top 80%',
+  3: 'Top 63%',
+  4: 'Top 42%',
+  5: 'Top 24%',
+  6: 'Top 10%',
+  7: 'Top 3%',
+  8: 'Top 1%',
 };
 
 export function getRankInfo(rankTier: number | null, leaderboardRank: number | null): RankInfo {

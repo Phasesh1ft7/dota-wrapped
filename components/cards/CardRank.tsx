@@ -8,16 +8,15 @@ interface Props {
   playerName: string;
 }
 
-const FLAVOUR: Record<number, string> = {
-  0: "Rank data not available.",
-  1: "Every legend starts somewhere.",
-  2: "The climb begins.",
-  3: "Above average and rising.",
-  4: "Solid. The grind continues.",
-  5: "Top quarter of all Dota players.",
-  6: "Elite territory.",
-  7: "Among the best in the world.",
-  8: "You are the 1%.",
+const RANK_FLAVOUR: Record<string, { line1: string; line2: string }> = {
+  Herald:   { line1: "Every legend starts somewhere.",   line2: "The climb is the whole point." },
+  Guardian: { line1: "The fundamentals are clicking.",   line2: "Keep pushing the enemy." },
+  Crusader: { line1: "You know what you're doing.",      line2: "Now do it consistently." },
+  Archon:   { line1: "Solid. Above average.",            line2: "The grind is clearly working." },
+  Legend:   { line1: "Top quarter of all Dota players.", line2: "That's genuinely impressive." },
+  Ancient:  { line1: "Elite territory.",                 line2: "Most players never get here." },
+  Divine:   { line1: "Top 3% in the world.",             line2: "You play this game at a high level." },
+  Immortal: { line1: "YOU ARE THE 1%.",                  line2: "Top 1.91% of all Dota 2 players worldwide." },
 };
 
 function getRankColor(medalNumber: number): string {
@@ -81,7 +80,7 @@ export default function CardRank({ rankInfo, playerName }: Props) {
   }
 
 
-  const flavour = FLAVOUR[medalNumber] ?? "";
+  const flavour = RANK_FLAVOUR[medalName];
 
   const rightLabel = isImmortal && leaderboardRank ? "LEADERBOARD" : "STARS";
   const rightValue = isImmortal && leaderboardRank
@@ -188,6 +187,7 @@ export default function CardRank({ rankInfo, playerName }: Props) {
             textTransform: "uppercase",
             letterSpacing: "0.2em",
             margin: 0,
+            marginTop: 6,
           }}
         >
           YOUR 2026 RANK
@@ -204,23 +204,21 @@ export default function CardRank({ rankInfo, playerName }: Props) {
           }}
         >
           <StatCol label="MEDAL" value={isHidden ? "—" : medalName} />
-          <div style={{ width: 1, backgroundColor: "rgba(255,255,255,0.08)", alignSelf: "stretch" }} />
+          <div style={{ width: 1, backgroundColor: "rgba(255,255,255,0.08)", height: "60%", alignSelf: "center" }} />
           <StatCol label="PERCENTILE" value={isHidden ? "—" : percentileLabel} />
-          <div style={{ width: 1, backgroundColor: "rgba(255,255,255,0.08)", alignSelf: "stretch" }} />
+          <div style={{ width: 1, backgroundColor: "rgba(255,255,255,0.08)", height: "60%", alignSelf: "center" }} />
           <StatCol label={rightLabel} value={rightValue} />
         </div>
-        <p
-          style={{
-            fontStyle: "italic",
-            color: "rgba(255,255,255,0.38)",
-            fontSize: 13,
-            textAlign: "center",
-            margin: 0,
-            marginTop: 24,
-          }}
-        >
-          {flavour}
-        </p>
+        {flavour && (
+          <div style={{ textAlign: "center", marginTop: 20 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#c8a84b", letterSpacing: 1, textTransform: "uppercase", fontStyle: "normal", margin: "0 0 4px", lineHeight: 1.3 }}>
+              {flavour.line1}
+            </p>
+            <p style={{ fontSize: 11, color: "#8a9bb0", letterSpacing: 0.5, fontStyle: "normal", margin: 0, lineHeight: 1.3 }}>
+              {flavour.line2}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Bottom Bar */}
