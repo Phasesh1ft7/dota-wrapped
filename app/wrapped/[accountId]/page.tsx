@@ -5,6 +5,15 @@ import { getCached, setCached, playerCacheKey } from "@/lib/cache";
 import WrappedClient from "@/components/WrappedClient";
 import PrivateProfileError from "@/components/PrivateProfileError";
 
+function decodeRank(rankTier: number): string {
+  const medals = ["Herald", "Guardian", "Crusader", "Archon", "Legend", "Ancient", "Divine", "Immortal"];
+  const medal = Math.floor(rankTier / 10);
+  const stars = rankTier % 10;
+  if (medal === 8) return "Immortal";
+  if (medal >= 1 && medal <= 7) return stars > 0 ? `${medals[medal - 1]} ${stars}` : medals[medal - 1];
+  return "Unranked";
+}
+
 interface Props {
   params: Promise<{ accountId: string }>;
   searchParams: Promise<{ refresh?: string }>;
@@ -12,35 +21,80 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { accountId } = await params;
+
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  let playerName = "Dota Player";
+  let heroName = "Unknown";
+  let heroCleanName = "";
+  let rank = "Unranked";
+  let winRate = "0";
+  let careerGames = "0";
+
   try {
-    const profile = await fetchPlayerProfile(accountId);
-    const name = profile.player?.profile?.personaname ?? "A Dota Player";
-    const avatar = profile.player?.profile?.avatarfull ?? null;
-    return {
-      title: `${name}'s 2026 Dota Wrapped`,
-      description: `${name} played Dota 2 in 2026. See their stats, top heroes and more.`,
-      openGraph: {
-        type: "website",
-        title: `${name}'s 2026 Dota Wrapped`,
-        description: `Check out ${name}'s 2026 Dota Wrapped — top heroes, hours played and more.`,
-        url: `https://dotawrapped.gg/wrapped/${accountId}`,
-        ...(avatar
-          ? { images: [{ url: avatar, width: 184, height: 184, alt: `${name}'s Steam avatar` }] }
-          : {}),
-      },
-      twitter: {
-        card: "summary",
-        title: `${name}'s 2026 Dota Wrapped`,
-        description: `Check out ${name}'s 2026 Dota Wrapped`,
-        ...(avatar ? { images: [avatar] } : {}),
-      },
-    };
+    const cached = await getCached<PlayerData>(playerCacheKey(accountId));
+
+    if (cached) {
+      playerName = cached.player?.profile?.personaname ?? "Dota Player";
+
+      // Top hero by all-time games
+      const topHeroStats = cached.heroes
+        ? [...cached.heroes].sort((a, b) => b.games - a.games)[0]
+        : null;
+      if (topHeroStats && cached.heroList) {
+        const heroId = Number(topHeroStats.hero_id);
+        const heroData = cached.heroList.find((h) => h.id === heroId);
+        if (heroData) {
+          heroName = heroData.localized_name;
+          heroCleanName = heroData.name.replace("npc_dota_hero_", "");
+        }
+      }
+
+      if (cached.player?.rank_tier) rank = decodeRank(cached.player.rank_tier);
+
+      if (cached.wl) {
+        const total = cached.wl.win + cached.wl.lose;
+        careerGames = String(total);
+        winRate = total > 0 ? ((cached.wl.win / total) * 100).toFixed(1) : "0";
+      }
+    } else {
+      // Cache miss — fall back to profile-only fetch (fast path, no match data)
+      const profile = await fetchPlayerProfile(accountId);
+      playerName = profile.player?.profile?.personaname ?? "Dota Player";
+      if (profile.player?.rank_tier) rank = decodeRank(profile.player.rank_tier);
+    }
   } catch {
-    return {
-      title: "Dota Wrapped 2026",
-      description: "See your 2026 Dota 2 year in review",
-    };
+    // return defaults below
   }
+
+  const ogParams = new URLSearchParams({
+    playerName,
+    heroName,
+    heroCleanName,
+    rank,
+    winRate,
+    careerGames,
+  });
+  const ogImageUrl = `${baseUrl}/api/og?${ogParams.toString()}`;
+  const description = `${rank} • ${careerGames} games • ${winRate}% win rate • Top hero: ${heroName}`;
+
+  return {
+    title: `${playerName}'s 2026 Dota Wrapped`,
+    description,
+    openGraph: {
+      title: `${playerName}'s 2026 Dota Wrapped`,
+      description,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${playerName}'s Dota Wrapped stats` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${playerName}'s 2026 Dota Wrapped`,
+      description,
+      images: [ogImageUrl],
+    },
+  };
 }
 
 function ErrorScreen({
