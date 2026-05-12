@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 
 const BASE_URL = "https://api.opendota.com/api";
 
@@ -531,34 +530,28 @@ export async function fetchHeroAbilitiesClient(): Promise<Record<string, HeroAbi
  * Throws Error("PRIVATE_PROFILE") if the profile is private or missing.
  * Cached for 1 hour per accountId.
  */
-export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
-  return unstable_cache(
-    async () => {
-      const [playerResult, wlResult, heroListResult, wlYearResult] = await Promise.allSettled([
-        fetchJson<PlayerProfile>(`${BASE_URL}/players/${accountId}`),
-        fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl`),
-        fetchJson<Hero[]>(`${BASE_URL}/heroes`),
-        fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl?date=365`),
-      ]);
+export async function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
+  const [playerResult, wlResult, heroListResult, wlYearResult] = await Promise.allSettled([
+    fetchJson<PlayerProfile>(`${BASE_URL}/players/${accountId}`),
+    fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl`),
+    fetchJson<Hero[]>(`${BASE_URL}/heroes`),
+    fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl?date=365`),
+  ]);
 
-      const player =
-        playerResult.status === "fulfilled" ? playerResult.value : null;
+  const player =
+    playerResult.status === "fulfilled" ? playerResult.value : null;
 
-      if (!player?.profile?.personaname) {
-        throw new Error("PRIVATE_PROFILE");
-      }
+  if (!player?.profile?.personaname) {
+    throw new Error("PRIVATE_PROFILE");
+  }
 
-      return {
-        player,
-        wl: wlResult.status === "fulfilled" ? wlResult.value : null,
-        wlYear: wlYearResult.status === "fulfilled" ? wlYearResult.value : null,
-        heroList:
-          heroListResult.status === "fulfilled" ? heroListResult.value : null,
-      };
-    },
-    [`player-profile-${accountId}`],
-    { revalidate: 3600 },
-  )();
+  return {
+    player,
+    wl: wlResult.status === "fulfilled" ? wlResult.value : null,
+    wlYear: wlYearResult.status === "fulfilled" ? wlYearResult.value : null,
+    heroList:
+      heroListResult.status === "fulfilled" ? heroListResult.value : null,
+  };
 }
 
 /**
@@ -566,69 +559,63 @@ export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
  * Individual failures return null for that slice — never throws.
  * Cached for 1 hour per accountId.
  */
-export function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
-  return unstable_cache(
-    async () => {
-      const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult, heroListResult, playerItemsResult, playerTotalsResult, heroAbilitiesResult] =
-        await Promise.allSettled([
-          fetchJson<PlayerHeroStats[]>(
-            `${BASE_URL}/players/${accountId}/heroes`,
-          ),
-          fetchJson<Match[]>(
-            `${BASE_URL}/players/${accountId}/matches?limit=100&date=365`,
-          ),
-          fetchJson<Match[]>(`${BASE_URL}/players/${accountId}/recentMatches`),
-          fetchJson<Peer[]>(`${BASE_URL}/players/${accountId}/peers`),
-          fetchJson<Record<string, ItemConstant>>(`${BASE_URL}/constants/items`),
-          fetchJson<Hero[]>(`${BASE_URL}/heroes`),
-          fetchJson<Record<string, PlayerItemStat>>(`${BASE_URL}/players/${accountId}/items`),
-          fetchJson<PlayerTotal[]>(`${BASE_URL}/players/${accountId}/totals`),
-          fetchHeroAbilities(),
-        ]);
+export async function fetchPlayerMatches(accountId: string): Promise<MatchesData> {
+  const [heroesResult, matchesResult, recentMatchesResult, peersResult, itemConstantsResult, heroListResult, playerItemsResult, playerTotalsResult, heroAbilitiesResult] =
+    await Promise.allSettled([
+      fetchJson<PlayerHeroStats[]>(
+        `${BASE_URL}/players/${accountId}/heroes`,
+      ),
+      fetchJson<Match[]>(
+        `${BASE_URL}/players/${accountId}/matches?limit=100&date=365`,
+      ),
+      fetchJson<Match[]>(`${BASE_URL}/players/${accountId}/recentMatches`),
+      fetchJson<Peer[]>(`${BASE_URL}/players/${accountId}/peers`),
+      fetchJson<Record<string, ItemConstant>>(`${BASE_URL}/constants/items`),
+      fetchJson<Hero[]>(`${BASE_URL}/heroes`),
+      fetchJson<Record<string, PlayerItemStat>>(`${BASE_URL}/players/${accountId}/items`),
+      fetchJson<PlayerTotal[]>(`${BASE_URL}/players/${accountId}/totals`),
+      fetchHeroAbilities(),
+    ]);
 
-      const recentMatches =
-        recentMatchesResult.status === "fulfilled"
-          ? recentMatchesResult.value
-          : null;
-      const matches =
-        matchesResult.status === "fulfilled" ? matchesResult.value : null;
-      const heroList =
-        heroListResult.status === "fulfilled" ? heroListResult.value : null;
+  const recentMatches =
+    recentMatchesResult.status === "fulfilled"
+      ? recentMatchesResult.value
+      : null;
+  const matches =
+    matchesResult.status === "fulfilled" ? matchesResult.value : null;
+  const heroList =
+    heroListResult.status === "fulfilled" ? heroListResult.value : null;
 
-      const playerHeroes =
-        heroesResult.status === "fulfilled" ? heroesResult.value : null;
+  const playerHeroes =
+    heroesResult.status === "fulfilled" ? heroesResult.value : null;
 
-      const [quizMatches, bestGameData, heroMatchResult] = await Promise.all([
-        resolveQuizMatches(accountId, recentMatches),
-        resolveBestGameDetails(accountId, matches, heroList),
-        resolveBestHeroMatchDetails(accountId, matches, playerHeroes),
-      ]);
+  const [quizMatches, bestGameData, heroMatchResult] = await Promise.all([
+    resolveQuizMatches(accountId, recentMatches),
+    resolveBestGameDetails(accountId, matches, heroList),
+    resolveBestHeroMatchDetails(accountId, matches, playerHeroes),
+  ]);
 
-      const bestHeroMatchDetails = heroMatchResult.details;
-      const heroCareerMatches = heroMatchResult.careerMatches;
+  const bestHeroMatchDetails = heroMatchResult.details;
+  const heroCareerMatches = heroMatchResult.careerMatches;
 
-      return {
-        heroes: playerHeroes,
-        matches,
-        recentMatches,
-        peers:
-          peersResult.status === "fulfilled" ? peersResult.value : null,
-        quizMatches,
-        itemConstants:
-          itemConstantsResult.status === "fulfilled"
-            ? itemConstantsResult.value
-            : null,
-        playerItems: playerItemsResult.status === "fulfilled" ? playerItemsResult.value : null,
-        bestGameData,
-        bestHeroMatchDetails,
-        heroCareerMatches,
-        playerTotals: playerTotalsResult.status === "fulfilled" ? playerTotalsResult.value : null,
-        heroAbilities: heroAbilitiesResult.status === "fulfilled" ? heroAbilitiesResult.value : null,
-      };
-    },
-    [`player-matches-${accountId}`],
-    { revalidate: 3600 },
-  )();
+  return {
+    heroes: playerHeroes,
+    matches,
+    recentMatches,
+    peers:
+      peersResult.status === "fulfilled" ? peersResult.value : null,
+    quizMatches,
+    itemConstants:
+      itemConstantsResult.status === "fulfilled"
+        ? itemConstantsResult.value
+        : null,
+    playerItems: playerItemsResult.status === "fulfilled" ? playerItemsResult.value : null,
+    bestGameData,
+    bestHeroMatchDetails,
+    heroCareerMatches,
+    playerTotals: playerTotalsResult.status === "fulfilled" ? playerTotalsResult.value : null,
+    heroAbilities: heroAbilitiesResult.status === "fulfilled" ? heroAbilitiesResult.value : null,
+  };
 }
 
 /** Convenience wrapper combining both fetches. */
