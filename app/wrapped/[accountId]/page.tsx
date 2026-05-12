@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { fetchPlayerProfile, fetchPlayerMatches } from "@/lib/opendota";
+import type { PlayerData, ProfileData, MatchesData } from "@/lib/opendota";
+import { getCached, setCached, playerCacheKey } from "@/lib/cache";
 import WrappedClient from "@/components/WrappedClient";
 import PrivateProfileError from "@/components/PrivateProfileError";
 
 interface Props {
   params: Promise<{ accountId: string }>;
+  searchParams: Promise<{ refresh?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -105,8 +108,50 @@ function ErrorScreen({
   );
 }
 
-export default async function WrappedPage({ params }: Props) {
+function computeHeroRelicsConfig(
+  accountId: string,
+  profile: ProfileData,
+  matchesData: MatchesData,
+) {
+  const heroYearCounts: Record<number, number> = {};
+  for (const m of matchesData.matches ?? []) {
+    heroYearCounts[m.hero_id] = (heroYearCounts[m.hero_id] ?? 0) + 1;
+  }
+  const topYearEntry = Object.entries(heroYearCounts)
+    .filter(([id]) => Number(id) > 0)
+    .sort(([, a], [, b]) => b - a)[0];
+  const topHeroId = topYearEntry ? Number(topYearEntry[0]) : -1;
+  const fallbackHeroId =
+    topHeroId > 0
+      ? topHeroId
+      : matchesData.heroes?.[0]
+        ? Number(matchesData.heroes[0].hero_id)
+        : (matchesData.heroCareerMatches?.[0]?.hero_id ?? -1);
+  return fallbackHeroId > 0 ? { accountId, heroId: fallbackHeroId } : null;
+}
+
+export default async function WrappedPage({ params, searchParams }: Props) {
   const { accountId } = await params;
+  const sp = await searchParams;
+  const forceRefresh = sp?.refresh === "1";
+  const cacheKey = playerCacheKey(accountId);
+
+  // --- Cache hit path ---
+  if (!forceRefresh) {
+    const cached = await getCached<PlayerData>(cacheKey);
+    if (cached) {
+      const profile: ProfileData = cached;
+      const matchesData: MatchesData = cached;
+      const heroRelicsConfig = computeHeroRelicsConfig(accountId, profile, matchesData);
+      return (
+        <WrappedClient
+          profile={profile}
+          matchesPromise={Promise.resolve(matchesData)}
+          heroRelicsConfig={heroRelicsConfig}
+        />
+      );
+    }
+  }
 
   // Step 1: fetch profile + matches in parallel
   const [profileResult, matchesResult] = await Promise.allSettled([
@@ -136,27 +181,11 @@ export default async function WrappedPage({ params }: Props) {
     return <ErrorScreen avatar={avatar} name={name} type="hidden" accountId={accountId} />;
   }
 
-  // Step 4: compute top hero and fetch hero relics if supported.
-  // Must use year-filtered matches (same as getYearInNumbers) so the hero matches the portrait in Card4MatchupB.
-  const heroMap = new Map((profile.heroList ?? []).map((h) => [h.id, h]));
-  const heroYearCounts: Record<number, number> = {};
-  for (const m of matchesData.matches ?? []) {
-    heroYearCounts[m.hero_id] = (heroYearCounts[m.hero_id] ?? 0) + 1;
-  }
-  const topYearEntry = Object.entries(heroYearCounts).filter(([id]) => Number(id) > 0).sort(([, a], [, b]) => b - a)[0];
-  const topHeroId = topYearEntry ? Number(topYearEntry[0]) : -1;
+  // Step 4: cache successful fetch, compute hero relics config, render
+  const playerData: PlayerData = { ...profile, ...matchesData };
+  await setCached(cacheKey, playerData);
 
-  // Fall back to all-time top hero when year matches yield no valid hero
-  const fallbackHeroId = topHeroId > 0
-    ? topHeroId
-    : (matchesData.heroes?.[0] ? Number(matchesData.heroes[0].hero_id) : (matchesData.heroCareerMatches?.[0]?.hero_id ?? -1));
-
-
-  const mostPlayedHeroCleanName = fallbackHeroId > 0
-    ? (heroMap.get(fallbackHeroId)?.name.replace("npc_dota_hero_", "") ?? "")
-    : "";
-
-  const heroRelicsConfig = fallbackHeroId > 0 ? { accountId, heroId: fallbackHeroId } : null;
+  const heroRelicsConfig = computeHeroRelicsConfig(accountId, profile, matchesData);
 
   // Step 5: render WrappedClient
   return <WrappedClient profile={profile} matchesPromise={Promise.resolve(matchesData)} heroRelicsConfig={heroRelicsConfig} />;
