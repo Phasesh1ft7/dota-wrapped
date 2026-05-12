@@ -192,6 +192,7 @@ export interface ComputedRelic {
 export interface ProfileData {
   player: PlayerProfile | null;
   wl: WinLoss | null;
+  wlYear: WinLoss | null;
   heroList: Hero[] | null;
 }
 
@@ -533,10 +534,11 @@ export async function fetchHeroAbilitiesClient(): Promise<Record<string, HeroAbi
 export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
   return unstable_cache(
     async () => {
-      const [playerResult, wlResult, heroListResult] = await Promise.allSettled([
+      const [playerResult, wlResult, heroListResult, wlYearResult] = await Promise.allSettled([
         fetchJson<PlayerProfile>(`${BASE_URL}/players/${accountId}`),
         fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl`),
         fetchJson<Hero[]>(`${BASE_URL}/heroes`),
+        fetchJson<WinLoss>(`${BASE_URL}/players/${accountId}/wl?date=365`),
       ]);
 
       const player =
@@ -549,6 +551,7 @@ export function fetchPlayerProfile(accountId: string): Promise<ProfileData> {
       return {
         player,
         wl: wlResult.status === "fulfilled" ? wlResult.value : null,
+        wlYear: wlYearResult.status === "fulfilled" ? wlYearResult.value : null,
         heroList:
           heroListResult.status === "fulfilled" ? heroListResult.value : null,
       };

@@ -870,11 +870,12 @@ export interface YearInNumbers {
   partyWinRate: number;
 }
 
-export function getYearInNumbers(yearMatches: Match[], heroes: Hero[]): YearInNumbers {
-  const totalGames = yearMatches.length;
+export function getYearInNumbers(yearMatches: Match[], heroes: Hero[], totalYearGames?: number): YearInNumbers {
+  const matchCount = yearMatches.length;
+  const totalGames = totalYearGames ?? matchCount;
   const totalSeconds = yearMatches.reduce((s, m) => s + m.duration, 0);
   const totalHours = Math.round((totalSeconds / 3600) * 10) / 10;
-  const avgSeconds = totalGames > 0 ? totalSeconds / totalGames : 0;
+  const avgSeconds = matchCount > 0 ? totalSeconds / matchCount : 0;
   const avgGameLength = `${Math.round(avgSeconds / 60)}m`;
 
   const sorted = [...yearMatches].sort((a, b) => a.match_id - b.match_id);
@@ -914,20 +915,20 @@ export function getYearInNumbers(yearMatches: Match[], heroes: Hero[]): YearInNu
     topHeroId > 0 ? (heroMap.get(topHeroId)?.name.replace("npc_dota_hero_", "") ?? "") : "";
 
   const firstBloodRate =
-    totalGames > 0
-      ? (yearMatches.filter((m) => m.firstblood_claimed).length / totalGames) * 100
+    matchCount > 0
+      ? (yearMatches.filter((m) => m.firstblood_claimed).length / matchCount) * 100
       : 0;
 
   const comebackWins = yearMatches.filter(
     (m) => isWin(m) && (m.comeback === true || m.duration > 45 * 60),
   ).length;
 
-  const avgKills = totalGames > 0
-    ? yearMatches.reduce((s, m) => s + (m.kills ?? 0), 0) / totalGames
+  const avgKills = matchCount > 0
+    ? yearMatches.reduce((s, m) => s + (m.kills ?? 0), 0) / matchCount
     : 0;
 
-  const avgDeaths = totalGames > 0
-    ? yearMatches.reduce((s, m) => s + (m.deaths ?? 0), 0) / totalGames
+  const avgDeaths = matchCount > 0
+    ? yearMatches.reduce((s, m) => s + (m.deaths ?? 0), 0) / matchCount
     : 0;
 
   const totalRampages = yearMatches.reduce((s, m) => s + (m.multi_kills?.rampage ?? 0), 0);

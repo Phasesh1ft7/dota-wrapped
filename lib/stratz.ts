@@ -535,6 +535,7 @@ export async function fetchPlayerData(accountId: number): Promise<PlayerData> {
   return {
     player,
     wl,
+    wlYear: null,
     heroList: heroList.length > 0 ? heroList : null,
     heroes: heroes.length > 0 ? heroes : null,
     matches: matches.length > 0 ? matches : null,

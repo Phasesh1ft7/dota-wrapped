@@ -150,7 +150,9 @@ export default function WrappedClient({ profile, matchesPromise, heroRelicsConfi
 
   const heroList = profile.heroList ?? [];
   const tempoStats = getTempoStats(matches);
-  const yearInNumbers = getYearInNumbers(matches, heroList);
+  const wlYear = profile.wlYear;
+  const totalYearGames = wlYear ? wlYear.win + wlYear.lose : undefined;
+  const yearInNumbers = getYearInNumbers(matches, heroList, totalYearGames);
   const signatureMoves = getSignatureMoves(
     matches,
     playerHeroes,
