@@ -11,6 +11,7 @@ import type {
   HeroStatEntry, BestHeroMatch, BestGame, TempoStats, SignatureMoves,
   LegendStats, PlayStyleStats, RankInfo, YearInNumbers,
 } from "@/lib/transforms";
+import { computePlaystyle } from "@/lib/transforms";
 import CardModal from "@/components/CardModal";
 
 const Card1Hero    = dynamic(() => import("./cards/Card1Hero"),    { ssr: false });
@@ -742,6 +743,8 @@ export default function WrappedCarousel({
   yearInNumbers, legendStats, playStyleStats, rankInfo, playerName,
   bestHeroMatch, heroAbilities,
 }: Props) {
+  const playstyle = computePlaystyle(heroStats);
+
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1);
   const [openModal, setOpenModal] = useState<ModalId | null>(null);
@@ -802,7 +805,7 @@ export default function WrappedCarousel({
       case 1: return <ErrorBoundary><Card1Hero profile={profile} topHero={heroStats[0]} bestHeroGame={bestHeroGame} bestHeroMatchDetails={bestHeroMatchDetails} itemConstants={itemConstants} signatureMoves={signatureMoves} yearMatches={matches} yearWinRate={yearWinRate} heroAbilities={heroAbilities ?? null} /></ErrorBoundary>;
       case 2: return <ErrorBoundary><CardRank rankInfo={rankInfo} playerName={playerName} /></ErrorBoundary>;
       case 3: return <ErrorBoundary><CardPlayStyle playStyleStats={playStyleStats} playerName={playerName} /></ErrorBoundary>;
-      case 4: return <ErrorBoundary><Card4MatchupB yearInNumbers={yearInNumbers} playerName={playerName} heroAbilities={heroAbilities} heroRelicsConfig={heroStats[0]?.hero_id && profile.player?.profile?.account_id ? { accountId: String(profile.player.profile.account_id), heroId: heroStats[0].hero_id } : null} /></ErrorBoundary>;
+      case 4: return <ErrorBoundary><Card4MatchupB yearInNumbers={yearInNumbers} playerName={playerName} heroAbilities={heroAbilities} heroRelicsConfig={heroStats[0]?.hero_id && profile.player?.profile?.account_id ? { accountId: String(profile.player.profile.account_id), heroId: heroStats[0].hero_id } : null} playstyle={playstyle} /></ErrorBoundary>;
       case 5: return <ErrorBoundary><Card5Summary profile={profile} heroStats={heroStats} matches={matches} heroes={heroList ?? []} totalHours={totalHours} yearWinRate={yearWinRate} totalGames={totalGames} isExporting={isExporting} /></ErrorBoundary>;
       case 6: return <ErrorBoundary><Card6Teammate peers={peers} /></ErrorBoundary>;
       case 8: return <ErrorBoundary><Card8BestMonth tempoStats={tempoStats} /></ErrorBoundary>;

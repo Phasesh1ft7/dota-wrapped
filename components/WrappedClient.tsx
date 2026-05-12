@@ -14,6 +14,7 @@ import {
   getPlayStyleStats,
   getRankInfo,
   getYearInNumbers,
+  computePlaystyle,
 } from "@/lib/transforms";
 import type { RankInfo } from "@/lib/transforms";
 import WrappedGrid from "@/components/WrappedGrid";
@@ -131,6 +132,8 @@ export default function WrappedClient({ profile, matchesPromise, heroRelicsConfi
   const totalHours = getTotalHoursFromHeroes(playerHeroes);
   const totalGames = getAllTimeGames(playerHeroes);
 
+  const playstyle = computePlaystyle(heroStats);
+
   const topHeroId = heroStats[0]?.hero_id ?? -1;
   const bestHeroMatch = topHeroId !== -1 ? getBestHeroMatch(matches, topHeroId) : null;
 
@@ -202,6 +205,7 @@ const rankInfo: RankInfo = getRankInfo(
         playerName={playerName}
         heroAbilities={matchesData.heroAbilities ?? null}
         heroRelicsConfig={heroRelicsConfig}
+        playstyle={playstyle}
       />
     </>
   );

@@ -10,6 +10,7 @@ interface Props {
   playerName: string;
   heroAbilities?: Record<string, { abilities: string[] }> | null;
   heroRelicsConfig: { accountId: string; heroId: number } | null;
+  playstyle: { badge: string; description: string };
 }
 
 const DOTA_CDN = "https://cdn.cloudflare.steamstatic.com";
@@ -39,7 +40,7 @@ function getRarity(totalGames: number): Rarity {
   return                        { label: "ARCANA",    color: "#ff6b35", border: "rgba(255,107,53,0.4)"  };
 }
 
-export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilitiesProp, heroRelicsConfig }: Props) {
+export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilitiesProp, heroRelicsConfig, playstyle }: Props) {
   const { totalGames, totalHours, bestWinStreak, worstLoseStreak, mostPlayedHeroCleanName } = yearInNumbers;
 
   const [heroRelics, setHeroRelics] = useState<ComputedRelic[]>([]);
@@ -105,13 +106,6 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
 
   const rarity = getRarity(totalGames);
 
-  // wins not available in YearInNumbers; use 50% as neutral baseline
-  const powerRating = Math.round(
-    (50 * 0.5) +
-    (Math.min(totalGames, 1000) / 1000 * 30) +
-    (bestWinStreak * 2)
-  );
-
   const stats = [
     { value: String(totalGames),    label: "BATTLES",  color: "#ffffff" },
     { value: `${totalHours}h`,      label: "AT WAR",   color: "#c8a84b" },
@@ -143,15 +137,15 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
           animation: holoRotate 4s linear infinite, holoGlow 4s ease infinite;
           border-radius: 16px;
           width: 100%;
-          height: 100%;
+          min-height: 500px;
           box-sizing: border-box;
         }
         .card4-inner {
           background: #0a0a0f;
           margin: 2px;
           border-radius: 14px;
-          height: calc(100% - 4px);
-          overflow: hidden;
+          min-height: calc(500px - 4px);
+          overflow: visible;
           display: flex;
           flex-direction: column;
           box-sizing: border-box;
@@ -161,8 +155,8 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
       <div className="card4-outer">
         <div className="card4-inner">
 
-          {/* ── SECTION 1: HERO PORTRAIT (65%, shrinks to 57% when relics are shown or loading) ── */}
-          <div style={{ flex: (relicsLoading || heroRelics.length > 0) ? "0 0 57%" : "0 0 65%", position: "relative", overflow: "hidden", background: "#0d1a26" }}>
+          {/* ── SECTION 1: HERO PORTRAIT ── */}
+          <div style={{ flex: "0 0 360px", position: "relative", overflow: "hidden", background: "#0d1a26" }}>
             {heroVertUrl && (
               <img
                 src={heroVertUrl}
@@ -236,10 +230,10 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
             </div>
           </div>
 
-          {/* ── SECTION 2: STAT FOOTER (35%) ── */}
+          {/* ── SECTION 2: STAT FOOTER ── */}
           <div
             style={{
-              flex: 1,
+              flex: "0 0 auto",
               background: "linear-gradient(to bottom, #000, #0a0a0f)",
               padding: "10px 14px 12px",
               display: "flex",
@@ -247,22 +241,17 @@ export default function Card4MatchupB({ yearInNumbers, heroAbilities: heroAbilit
               gap: 8,
             }}
           >
-            {/* ROW 1: POWER RATING */}
-            <div style={{ textAlign: "center" }}>
-              <p style={{ margin: 0, fontSize: 36, fontWeight: 900, color: rarity.color, lineHeight: 1 }}>
-                {powerRating}
-              </p>
-              <p
-                style={{
-                  margin: "2px 0 0",
-                  fontSize: 7,
-                  letterSpacing: "0.22em",
-                  textTransform: "uppercase",
-                  color: "#8a9bb0",
-                }}
-              >
-                POWER RATING
-              </p>
+            {/* ROW 1: PLAYSTYLE */}
+            <div style={{ textAlign: "center", padding: "8px 16px" }}>
+              <div style={{ fontSize: 9, color: "#8a9bb0", letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>
+                Playstyle
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#c8a84b", letterSpacing: 2, textTransform: "uppercase" }}>
+                {playstyle.badge}
+              </div>
+              <div style={{ fontSize: 10, color: "#8a9bb0", marginTop: 4, fontStyle: "italic" }}>
+                {playstyle.description}
+              </div>
             </div>
 
             <div style={{ height: 1, background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />

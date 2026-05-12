@@ -77,6 +77,7 @@ export interface HeroStatEntry {
   games: number;
   wins: number;
   winRate: string; // e.g. "52.3"
+  roles: string[];
 }
 
 export interface Streaks {
@@ -118,6 +119,7 @@ export function getHeroStats(
         games: ph.games,
         wins: ph.win,
         winRate: ph.games > 0 ? ((ph.win / ph.games) * 100).toFixed(1) : "0.0",
+        roles: heroMap.get(hero_id)?.roles ?? [],
       };
     });
 }
@@ -956,4 +958,54 @@ export function getYearInNumbers(yearMatches: Match[], heroes: Hero[]): YearInNu
     totalRampages,
     partyWinRate,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 14. computePlaystyle
+// ---------------------------------------------------------------------------
+
+export function computePlaystyle(heroPool: HeroStatEntry[]): {
+  badge: string;
+  description: string;
+} {
+  if (!heroPool || heroPool.length === 0) {
+    return { badge: "VERSATILE", description: "A true all-rounder." };
+  }
+
+  const roleCounts: Record<string, number> = {};
+  for (const hero of heroPool) {
+    for (const role of hero.roles) {
+      roleCounts[role] = (roleCounts[role] ?? 0) + hero.games;
+    }
+  }
+
+  const totalGames = heroPool.reduce((s, h) => s + h.games, 0);
+  const pct = (role: string) => ((roleCounts[role] ?? 0) / totalGames) * 100;
+  const avgWinRate = heroPool.reduce((s, h) => s + parseFloat(h.winRate), 0)
+    / heroPool.length;
+
+  const scores: Record<string, number> = {
+    "HARD CARRY":    pct("Carry") * 1.5 - pct("Support") * 0.5,
+    "SUPPORT MAIN":  pct("Support") * 1.5 + pct("Disabler") * 0.5 - pct("Carry"),
+    "SPELLCASTER":   pct("Nuker") * 1.2 + pct("Disabler") * 0.8,
+    "INITIATOR":     pct("Initiator") * 1.0 + pct("Disabler") * 0.5 - pct("Support") * 0.3,
+    "STRATEGIST":    pct("Pusher") * 1.5 + pct("Jungler") * 1.5,
+    "VERSATILE":     0,
+  };
+
+  scores["CALCULATED"] = avgWinRate >= 58 ? 60 : 0;
+
+  const badge = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+
+  const descriptions: Record<string, string> = {
+    "HARD CARRY":   "You close games. Simple as that.",
+    "SUPPORT MAIN": "The unsung hero of every victory.",
+    "SPELLCASTER":  "You delete heroes before they blink.",
+    "INITIATOR":    "You start the fight. Everyone else finishes it.",
+    "STRATEGIST":   "While they fight, you take objectives.",
+    "CALCULATED":   "High win rate. You pick your battles.",
+    "VERSATILE":    "No one can predict what you'll play next.",
+  };
+
+  return { badge, description: descriptions[badge] };
 }

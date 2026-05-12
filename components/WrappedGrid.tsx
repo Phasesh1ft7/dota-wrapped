@@ -42,6 +42,7 @@ interface Props {
   playerName: string;
   heroAbilities: Record<string, HeroAbilitiesEntry> | null;
   heroRelicsConfig: { accountId: string; heroId: number } | null;
+  playstyle: { badge: string; description: string };
 }
 
 type CardId = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9;
@@ -336,6 +337,7 @@ export default function WrappedGrid({
   playerName: playerNameProp,
   heroAbilities,
   heroRelicsConfig,
+  playstyle,
 }: Props) {
   const [openCard, setOpenCard] = useState<CardId | null>(null);
   const [hoveredTile, setHoveredTile] = useState<CardId | null>(null);
@@ -486,7 +488,7 @@ export default function WrappedGrid({
       );
       case 2: return <CardErrorBoundary><CardRank rankInfo={rankInfo} playerName={playerName} /></CardErrorBoundary>;
       case 3: return <CardErrorBoundary><CardPlayStyle playStyleStats={playStyleStats} playerName={playerName} /></CardErrorBoundary>;
-      case 4: return <CardErrorBoundary><Card4MatchupB yearInNumbers={yearInNumbers} playerName={playerName} heroAbilities={heroAbilities} heroRelicsConfig={heroRelicsConfig} /></CardErrorBoundary>;
+      case 4: return <CardErrorBoundary><Card4MatchupB yearInNumbers={yearInNumbers} playerName={playerName} heroAbilities={heroAbilities} heroRelicsConfig={heroRelicsConfig} playstyle={playstyle} /></CardErrorBoundary>;
       case 5: return (
         <CardErrorBoundary>
           <Card5Summary
