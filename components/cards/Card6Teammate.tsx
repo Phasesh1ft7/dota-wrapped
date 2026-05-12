@@ -2,14 +2,30 @@
 
 import type { Peer } from "@/lib/opendota";
 
-interface Props {
-  peers: Peer[] | null;
+function timeAgo(unixTs: number): string {
+  const seconds = Math.floor(Date.now() / 1000) - unixTs;
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} months ago`;
+  const years = Math.floor(days / 365);
+  return `${years} year${years > 1 ? "s" : ""} ago`;
 }
 
-const shareUrl = () =>
-  typeof window !== "undefined" ? window.location.href : "";
+interface Props {
+  peers: Peer[] | null;
+  playerName: string;
+  isExporting?: boolean;
+}
 
-export default function Card6Teammate({ peers }: Props) {
+export default function Card6Teammate({ peers, playerName, isExporting = false }: Props) {
   const topPeer = (peers ?? [])
     .filter((p) => p.games > 10)
     .sort((a, b) => b.games - a.games)[0] ?? null;
@@ -46,15 +62,6 @@ export default function Card6Teammate({ peers }: Props) {
     ? Math.round(topPeer.with_xpm_sum / topPeer.with_games)
     : null;
 
-  const copy = wr >= 55
-    ? "A winning partnership."
-    : wr >= 45
-      ? "Through thick and thin."
-      : "You suffer together.";
-
-  const h2hWins = topPeer.against_win;
-  const h2hLosses = topPeer.against_games - topPeer.against_win;
-
   return (
     <div
       style={{
@@ -68,27 +75,6 @@ export default function Card6Teammate({ peers }: Props) {
         padding: "24px 28px 0 28px",
       }}
     >
-      {/* 2026 rotated */}
-      <span
-        style={{
-          position: "absolute",
-          right: 12,
-          top: "30%",
-          transform: "rotate(90deg)",
-          transformOrigin: "center center",
-          fontSize: 10,
-          letterSpacing: "0.3em",
-          opacity: 0.3,
-          color: "white",
-          whiteSpace: "nowrap",
-          pointerEvents: "none",
-          userSelect: "none",
-          zIndex: 2,
-        }}
-      >
-        2026
-      </span>
-
       {/* SVG scribble */}
       <svg
         viewBox="0 0 300 80"
@@ -107,47 +93,20 @@ export default function Card6Teammate({ peers }: Props) {
         <path d="M-10,70 Q80,40 140,65 Q200,85 310,55" fill="none" stroke="white" strokeWidth="1.5" />
       </svg>
 
-      {/* Share button */}
-      <button
-        onClick={() => navigator.clipboard?.writeText(shareUrl()).catch(() => {})}
+      {/* FIX 6: playerName context header */}
+      <div
         style={{
-          position: "absolute",
-          bottom: 44,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 160,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: "white",
-          color: "black",
-          fontSize: 13,
-          fontWeight: 600,
-          border: "none",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          zIndex: 5,
-        }}
-      >
-        Share this story
-      </button>
-
-      {/* DOTA WRAPPED label */}
-      <p
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: 28,
-          fontSize: 10,
-          letterSpacing: "0.15em",
-          opacity: 0.35,
-          color: "white",
+          fontSize: 11,
+          color: "rgba(138,43,226,0.5)",
+          letterSpacing: 3,
           textTransform: "uppercase",
-          margin: 0,
-          zIndex: 2,
+          textAlign: "center",
+          paddingTop: 16,
+          marginBottom: 4,
         }}
       >
-        Dota Wrapped
-      </p>
+        {playerName}
+      </div>
 
       {/* Top label */}
       <p
@@ -159,12 +118,13 @@ export default function Card6Teammate({ peers }: Props) {
           textTransform: "uppercase",
           marginBottom: 16,
           flexShrink: 0,
+          textAlign: "center",
         }}
       >
         Your Most Frequent Teammate
       </p>
 
-      {/* Avatar with glow ring */}
+      {/* Avatar with glow ring — FIX 5: 96px */}
       <div
         style={{
           display: "flex",
@@ -176,8 +136,8 @@ export default function Card6Teammate({ peers }: Props) {
         {topPeer.avatarfull ? (
           <div
             style={{
-              width: 88,
-              height: 88,
+              width: 96,
+              height: 96,
               borderRadius: "50%",
               border: "3px solid #a855f7",
               overflow: "hidden",
@@ -194,8 +154,8 @@ export default function Card6Teammate({ peers }: Props) {
         ) : (
           <div
             style={{
-              width: 88,
-              height: 88,
+              width: 96,
+              height: 96,
               borderRadius: "50%",
               border: "3px solid #a855f7",
               backgroundColor: "rgba(168,85,247,0.15)",
@@ -204,7 +164,7 @@ export default function Card6Teammate({ peers }: Props) {
         )}
       </div>
 
-      {/* Teammate name */}
+      {/* Teammate name — 26px/900 already above 24px spec floor */}
       <p
         style={{
           color: "white",
@@ -213,29 +173,14 @@ export default function Card6Teammate({ peers }: Props) {
           lineHeight: 1,
           letterSpacing: "-0.02em",
           textAlign: "center",
-          marginBottom: 4,
+          marginBottom: 16,
           flexShrink: 0,
         }}
       >
         {topPeer.personaname ?? "Unknown"}
       </p>
 
-      <p
-        style={{
-          color: "rgba(255,255,255,0.35)",
-          fontSize: 9,
-          fontWeight: 700,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          textAlign: "center",
-          marginBottom: 16,
-          flexShrink: 0,
-        }}
-      >
-        You&apos;ve played together
-      </p>
-
-      {/* Games + Win rate — main stats */}
+      {/* Games + Win rate */}
       <div
         style={{
           display: "flex",
@@ -264,7 +209,7 @@ export default function Card6Teammate({ peers }: Props) {
         </div>
       </div>
 
-      {/* GPM / XPM grid */}
+      {/* GPM / XPM grid — FIX 1: XPM (not XMP) */}
       {(avgGpm !== null || avgXpm !== null) && (
         <div
           style={{
@@ -308,37 +253,111 @@ export default function Card6Teammate({ peers }: Props) {
         </div>
       )}
 
-      {/* H2H record */}
-      <div style={{ textAlign: "center", marginBottom: 12, flexShrink: 0 }}>
-        {topPeer.against_games > 0 ? (
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-            Head to head:{" "}
-            <span style={{ color: "#B9FF33" }}>{h2hWins}W</span>
-            {" / "}
-            <span style={{ color: "#FF4D30" }}>{h2hLosses}L</span>
-          </p>
-        ) : (
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontStyle: "italic" }}>
-            You&apos;ve never faced each other
-          </p>
-        )}
+      {/* Last played together */}
+      <div style={{
+        textAlign: "center",
+        padding: "12px 0 0",
+        fontSize: 10,
+        color: "#8a9bb0",
+        letterSpacing: 1,
+        textTransform: "uppercase",
+      }}>
+        Last played together{" "}
+        <span style={{ color: "#fff", fontWeight: 700 }}>
+          {timeAgo(topPeer.last_played)}
+        </span>
       </div>
 
-      {/* Copy */}
-      <p
+      {/* Rivals record */}
+      {topPeer.against_games >= 5 && (
+        <div style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 0 0",
+          fontSize: 10,
+          color: "#8a9bb0",
+          letterSpacing: 1,
+          textTransform: "uppercase",
+        }}>
+          As rivals:{"  "}
+          <span style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#9ef01a",
+          }}>
+            {topPeer.against_win}W
+          </span>
+          <span style={{ color: "#4a5568" }}>/</span>
+          <span style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#ef4444",
+          }}>
+            {topPeer.against_games - topPeer.against_win}L
+          </span>
+        </div>
+      )}
+
+      {/* FIX 5: Purple divider */}
+      <div
         style={{
-          color: "rgba(255,255,255,0.28)",
-          fontSize: 12,
-          fontStyle: "italic",
-          textAlign: "center",
+          borderTop: "1px solid rgba(138,43,226,0.2)",
+          marginTop: 16,
+          marginBottom: 8,
           flexShrink: 0,
         }}
-      >
-        &ldquo;{copy}&rdquo;
-      </p>
+      />
 
-      {/* Spacer */}
-      <div style={{ height: 88, flexShrink: 0 }} />
+      {/* Share button — FIX 4: normal flow, gated on !isExporting */}
+      {!isExporting && (
+        <button
+          onClick={() =>
+            navigator.clipboard
+              ?.writeText(typeof window !== "undefined" ? window.location.href : "")
+              .catch(() => {})
+          }
+          style={{
+            display: "block",
+            width: "fit-content",
+            margin: "0 auto",
+            padding: "0 24px",
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: "white",
+            color: "black",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            cursor: "pointer",
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 5,
+          }}
+        >
+          Share this story
+        </button>
+      )}
+
+      {/* Watermark — FIX 4: normal flow */}
+      <p
+        style={{
+          textAlign: "center",
+          fontSize: 11,
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.25)",
+          letterSpacing: 3,
+          textTransform: "uppercase",
+          padding: "8px 0",
+          margin: 0,
+          flexShrink: 0,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        DOTA WRAPPED
+      </p>
     </div>
   );
 }
