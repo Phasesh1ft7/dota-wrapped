@@ -4,39 +4,39 @@ import type { TempoStats } from "@/lib/transforms";
 
 interface Props {
   tempoStats: TempoStats;
+  playerName: string;
+  isExporting?: boolean;
 }
 
-const shareUrl = () =>
-  typeof window !== "undefined" ? window.location.href : "";
-
-function StatRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function StatRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
     <div
       style={{
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "baseline",
-        padding: "10px 0",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        gap: 8,
+        padding: last ? "10px 0 8px" : "10px 0",
+        borderBottom: last ? "none" : "1px solid rgba(255,255,255,0.06)",
       }}
     >
       <span
         style={{
-          color: "rgba(255,255,255,0.4)",
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.12em",
+          fontSize: 10,
+          color: "#8a9bb0",
+          letterSpacing: 2,
           textTransform: "uppercase",
+          flexShrink: 0,
         }}
       >
         {label}
       </span>
+      <div style={{ flex: 1, borderBottom: "1px dotted rgba(255,255,255,0.25)", marginBottom: 0 }} />
       <span
         style={{
-          color: accent ?? "white",
           fontSize: 18,
-          fontWeight: 800,
-          letterSpacing: "-0.02em",
+          fontWeight: 700,
+          color: "#fff",
+          flexShrink: 0,
         }}
       >
         {value}
@@ -45,7 +45,7 @@ function StatRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-export default function Card8BestMonth({ tempoStats }: Props) {
+export default function Card8BestMonth({ tempoStats, playerName, isExporting = false }: Props) {
   const { fastestWin, longestGame, avgDuration, totalHoursThisYear } = tempoStats;
 
   return (
@@ -68,7 +68,7 @@ export default function Card8BestMonth({ tempoStats }: Props) {
           inset: 0,
           width: "100%",
           height: "100%",
-          opacity: 0.04,
+          opacity: 0.05,
           pointerEvents: "none",
           zIndex: 0,
         }}
@@ -82,68 +82,6 @@ export default function Card8BestMonth({ tempoStats }: Props) {
         ))}
       </svg>
 
-      {/* Year label rotated right edge */}
-      <span
-        style={{
-          position: "absolute",
-          right: 12,
-          top: "25%",
-          transform: "translateY(-50%) rotate(90deg)",
-          fontSize: 11,
-          letterSpacing: "0.3em",
-          opacity: 0.35,
-          textTransform: "uppercase",
-          color: "white",
-          pointerEvents: "none",
-          whiteSpace: "nowrap",
-          zIndex: 2,
-        }}
-      >
-        2026
-      </span>
-
-      {/* Share button */}
-      <button
-        onClick={() => navigator.clipboard?.writeText(shareUrl()).catch(() => {})}
-        style={{
-          position: "absolute",
-          bottom: 44,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 160,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: "white",
-          color: "black",
-          fontSize: 13,
-          fontWeight: 600,
-          border: "none",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          zIndex: 5,
-        }}
-      >
-        Share this story
-      </button>
-
-      {/* DOTA WRAPPED bottom-left */}
-      <p
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: 28,
-          fontSize: 10,
-          letterSpacing: "0.15em",
-          opacity: 0.35,
-          color: "white",
-          textTransform: "uppercase",
-          margin: 0,
-          zIndex: 2,
-        }}
-      >
-        Dota Wrapped
-      </p>
-
       {/* Main content */}
       <div
         style={{
@@ -155,6 +93,44 @@ export default function Card8BestMonth({ tempoStats }: Props) {
           zIndex: 1,
         }}
       >
+        {/* Header */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 24,
+          paddingBottom: 16,
+          borderBottom: "1px solid rgba(0,212,255,0.15)",
+          marginBottom: 16,
+        }}>
+          <div style={{
+            fontSize: 9,
+            color: "rgba(0,212,255,0.6)",
+            letterSpacing: 4,
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}>
+            Tempo Stats
+          </div>
+          <div style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: "#fff",
+            letterSpacing: 2,
+            textTransform: "uppercase",
+          }}>
+            {playerName}
+          </div>
+          <div style={{
+            fontSize: 9,
+            color: "rgba(255,255,255,0.3)",
+            letterSpacing: 2,
+            marginTop: 4,
+          }}>
+            2026 Season
+          </div>
+        </div>
+
         {/* Top label */}
         <p
           style={{
@@ -169,7 +145,7 @@ export default function Card8BestMonth({ tempoStats }: Props) {
           Fastest win
         </p>
 
-        {/* Hero number — fastest win */}
+        {/* Fastest win value */}
         <p
           style={{
             color: "#06B6D4",
@@ -183,16 +159,60 @@ export default function Card8BestMonth({ tempoStats }: Props) {
           {fastestWin ?? "—"}
         </p>
 
-        {/* Divider + stat rows */}
+        {/* Stat rows */}
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 4 }}>
           <StatRow label="Longest game" value={longestGame ?? "—"} />
           <StatRow label="Avg duration" value={avgDuration} />
-          <StatRow label="Hours this year" value={`${totalHoursThisYear}h`} accent="#06B6D4" />
+          <StatRow label="Hours this year" value={`${totalHoursThisYear}h`} last />
         </div>
       </div>
 
-      {/* Spacer for share button + branding */}
-      <div style={{ height: 88, flexShrink: 0 }} />
+      {/* Share button */}
+      {!isExporting && (
+        <button
+          onClick={() =>
+            navigator.clipboard
+              ?.writeText(typeof window !== "undefined" ? window.location.href : "")
+              .catch(() => {})
+          }
+          style={{
+            display: "block",
+            width: "fit-content",
+            margin: "8px auto",
+            padding: "0 24px",
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: "white",
+            color: "black",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            cursor: "pointer",
+            position: "relative",
+            zIndex: 5,
+          }}
+        >
+          Share this story
+        </button>
+      )}
+
+      {/* Watermark */}
+      <p
+        style={{
+          textAlign: "center",
+          fontSize: 11,
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.25)",
+          letterSpacing: 3,
+          textTransform: "uppercase",
+          paddingBottom: 12,
+          margin: 0,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        DOTA WRAPPED
+      </p>
     </div>
   );
 }

@@ -808,7 +808,7 @@ export default function WrappedCarousel({
       case 4: return <ErrorBoundary><Card4MatchupB yearInNumbers={yearInNumbers} playerName={playerName} heroAbilities={heroAbilities} heroRelicsConfig={heroStats[0]?.hero_id && profile.player?.profile?.account_id ? { accountId: String(profile.player.profile.account_id), heroId: heroStats[0].hero_id } : null} playstyle={playstyle} /></ErrorBoundary>;
       case 5: return <ErrorBoundary><Card5Summary profile={profile} heroStats={heroStats} matches={matches} heroes={heroList ?? []} totalHours={totalHours} yearWinRate={yearWinRate} totalGames={totalGames} isExporting={isExporting} /></ErrorBoundary>;
       case 6: return <ErrorBoundary><Card6Teammate peers={peers} /></ErrorBoundary>;
-      case 8: return <ErrorBoundary><Card8BestMonth tempoStats={tempoStats} /></ErrorBoundary>;
+      case 8: return <ErrorBoundary><Card8BestMonth tempoStats={tempoStats} playerName={playerName} /></ErrorBoundary>;
       case 9: return <ErrorBoundary><CardQuiz quizMatches={quizMatches} itemConstants={itemConstants} heroList={heroList} /></ErrorBoundary>;
     }
   }

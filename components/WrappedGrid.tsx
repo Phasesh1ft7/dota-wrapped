@@ -500,7 +500,7 @@ export default function WrappedGrid({
         </CardErrorBoundary>
       );
       case 6: return <CardErrorBoundary><Card6Teammate peers={peers} /></CardErrorBoundary>;
-      case 8: return <CardErrorBoundary><Card8BestMonth tempoStats={tempoStats} /></CardErrorBoundary>;
+      case 8: return <CardErrorBoundary><Card8BestMonth tempoStats={tempoStats} playerName={playerName} isExporting={isExporting} /></CardErrorBoundary>;
       case 9: return <CardErrorBoundary><CardQuiz quizMatches={quizMatches} itemConstants={itemConstants} heroList={heroList} /></CardErrorBoundary>;
     }
   }
