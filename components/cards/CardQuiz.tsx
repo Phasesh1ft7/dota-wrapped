@@ -7,6 +7,7 @@ interface Props {
   quizMatches: QuizMatch[];
   itemConstants: Record<string, ItemConstant> | null;
   heroList: Hero[] | null;
+  playerName: string;
 }
 
 type QuizState = "question" | "correct" | "wrong";
@@ -16,7 +17,7 @@ const STEAM_CDN = "https://cdn.cloudflare.steamstatic.com";
 const shareUrl = () =>
   typeof window !== "undefined" ? window.location.href : "";
 
-export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props) {
+export default function CardQuiz({ quizMatches, itemConstants, heroList, playerName }: Props) {
   const [state, setState] = useState<QuizState>("question");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [hoveredBtn, setHoveredBtn] = useState<number | null>(null);
@@ -62,24 +63,6 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
   // ── Shared absolute chrome (on all states) ────────────────────────────────
   const Chrome = ({ dark = true }: { dark?: boolean }) => (
     <>
-      <span
-        style={{
-          position: "absolute",
-          right: 12,
-          top: "30%",
-          transform: "rotate(90deg)",
-          transformOrigin: "center center",
-          fontSize: 10,
-          letterSpacing: "0.3em",
-          opacity: 0.3,
-          color: "white",
-          whiteSpace: "nowrap",
-          pointerEvents: "none",
-          userSelect: "none",
-        }}
-      >
-        2026
-      </span>
       <svg
         viewBox="0 0 300 80"
         style={{
@@ -107,22 +90,6 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
         />
       </svg>
      
-      <p
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: 28,
-          fontSize: 10,
-          letterSpacing: "0.15em",
-          opacity: 0.35,
-          color: "white",
-          textTransform: "uppercase",
-          margin: 0,
-          zIndex: 2,
-        }}
-      >
-        Dota Wrapped
-      </p>
     </>
   );
 
@@ -174,6 +141,15 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
 
         {/* Dramatic two-line header */}
         <div style={{ marginBottom: 20, flexShrink: 0, position: "relative", zIndex: 1 }}>
+          <div style={{
+            fontSize: 9,
+            color: "rgba(200,168,75,0.5)",
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            marginBottom: 4,
+          }}>
+            {playerName}
+          </div>
           <p
             style={{
               color: "white",
@@ -194,10 +170,20 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
               lineHeight: 0.9,
               letterSpacing: "-0.04em",
               textTransform: "uppercase",
+              marginBottom: 8,
             }}
           >
             DID YOU PLAY?
           </p>
+          <div style={{
+            fontSize: 10,
+            color: "#8a9bb0",
+            letterSpacing: 1,
+            marginBottom: 12,
+            textTransform: "uppercase",
+          }}>
+            Guess the hero from your recent match items
+          </div>
         </div>
 
         {/* Item grid 3×2 — 88×88px */}
@@ -205,12 +191,14 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 88px)",
-            gridTemplateRows: "repeat(2, 88px)",
+            gridTemplateRows: "repeat(2, 60px)",
             gap: 8,
             marginBottom: 16,
             flexShrink: 0,
             position: "relative",
             zIndex: 1,
+            paddingLeft: 0,
+            paddingRight: 0,
           }}
         >
           {quizMatch.items.map((itemId, idx) => {
@@ -316,16 +304,29 @@ export default function CardQuiz({ quizMatches, itemConstants, heroList }: Props
                     {hero.localized_name}
                   </span>
                 </div>
-                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 16, flexShrink: 0 }}>
-                  →
-                </span>
               </button>
             );
           })}
         </div>
 
-        {/* Spacer for share button + DOTA WRAPPED */}
-        <div style={{ height: 88, flexShrink: 0 }} />
+        {/* Watermark */}
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.25)",
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            padding: "8px 0",
+            margin: 0,
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          DOTA WRAPPED
+        </p>
       </div>
     );
   }

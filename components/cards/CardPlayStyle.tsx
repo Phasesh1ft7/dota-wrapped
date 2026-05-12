@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   RadarChart,
   PolarGrid,
@@ -7,6 +8,12 @@ import {
   Radar,
 } from "recharts";
 import type { PlayStyleStats } from "@/lib/transforms";
+
+function fmtStuns(seconds: number): string {
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  const h = (seconds / 3600).toFixed(1);
+  return `${h}h`;
+}
 
 interface Props {
   playStyleStats: PlayStyleStats | null;
@@ -30,7 +37,7 @@ function SectionHeader({ label }: { label: string }) {
   );
 }
 
-function EmojiRow({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+function EmojiRow({ emoji, label, value }: { emoji: string; label: string; value: ReactNode }) {
   return (
     <div
       style={{
@@ -78,11 +85,11 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
   } = playStyleStats;
 
   const radarData = [
-    { axis: "FIGHTING",    value: fighting,   max: 100 },
-    { axis: "FARMING",     value: farming,    max: 100 },
-    { axis: "SUPPORTING",  value: supporting, max: 100 },
-    { axis: "PUSHING",     value: pushing,    max: 100 },
-    { axis: "UTILITY",     value: utility,    max: 100 },
+    { axis: "FIGHT",   value: fighting,   max: 100 },
+    { axis: "FARM",    value: farming,    max: 100 },
+    { axis: "SUPPORT", value: supporting, max: 100 },
+    { axis: "PUSH",    value: pushing,    max: 100 },
+    { axis: "UTIL",    value: utility,    max: 100 },
   ];
 
   const formatHealing = (v: number) =>
@@ -103,6 +110,18 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
     >
       {/* Header */}
       <div style={{ marginBottom: 12, flexShrink: 0 }}>
+        <div
+          style={{
+            fontSize: 9,
+            color: "rgba(200,168,75,0.6)",
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            textAlign: "left",
+            paddingBottom: 4,
+          }}
+        >
+          {playerName}
+        </div>
         <p
           style={{
             color: "white",
@@ -126,7 +145,7 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
             margin: "3px 0 10px",
           }}
         >
-          MOST RECENT YEAR
+          2026 SEASON
         </p>
         <div
           style={{
@@ -137,11 +156,11 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
       </div>
 
       {/* Two-column content */}
-      <div style={{ display: "flex", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
         {/* LEFT: Radar */}
         <div
           style={{
-            width: 156,
+            width: "45%",
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
@@ -160,15 +179,16 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
           <RadarChart
             cx="50%"
             cy="50%"
-            outerRadius={50}
-            width={156}
-            height={156}
+            outerRadius={48}
+            width={160}
+            height={150}
+            margin={{ top: 10, right: 30, bottom: 10, left: 10 }}
             data={radarData}
           >
             <PolarGrid stroke="rgba(255,255,255,0.08)" />
             <PolarAngleAxis
               dataKey="axis"
-              tick={{ fill: "#c8a84b", fontSize: 9, fontWeight: 700 }}
+              tick={{ fill: "#c8a84b", fontSize: 9, fontWeight: 600 }}
               tickLine={false}
             />
             <Radar
@@ -193,7 +213,6 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
         <div
           style={{
             flex: 1,
-            paddingLeft: 12,
             display: "flex",
             flexDirection: "column",
           }}
@@ -212,51 +231,18 @@ export default function CardPlayStyle({ playStyleStats, playerName }: Props) {
             }}
           />
 
-          {/* Section B — Career Totals */}
-          <SectionHeader label="Career Totals" />
+          {/* Section B — Career Highlights */}
+          <SectionHeader label="Career Highlights" />
           <EmojiRow emoji="🚚" label="Couriers Killed"  value={couriersKilled.toLocaleString()} />
-          <EmojiRow emoji="⚡" label="Stuns Applied"    value={`${stunsApplied.toLocaleString()}s`} />
+          <EmojiRow emoji="⚡" label="Stuns Applied"    value={fmtStuns(stunsApplied)} />
           <EmojiRow emoji="🏰" label="Tower Kills"      value={towerKills.toLocaleString()} />
           <EmojiRow emoji="👁️" label="Wards Placed"     value={wardsPlaced.toLocaleString()} />
           <EmojiRow emoji="🌀" label="TP Scrolls Used"  value={tpScrollsUsed.toLocaleString()} />
-          <EmojiRow emoji="⚡" label="Actions Per Min"  value={`${actionsPerMin} APM`} />
+          <EmojiRow emoji="⚡" label="Actions Per Min"  value={<>{actionsPerMin}<span style={{ fontSize: 10, color: "#8a9bb0", marginLeft: 2 }}>APM</span></>} />
           <EmojiRow emoji="💚" label="Hero Healing"     value={formatHealing(heroHealing)} />
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 4px",
-          borderTop: "1px solid rgba(200,168,75,0.2)",
-          marginTop: 10,
-        }}
-      >
-        <div
-          style={{
-            width: 10,
-            height: 10,
-            backgroundColor: "#c8a84b",
-            flexShrink: 0,
-          }}
-        />
-        <span
-          style={{
-            color: "#c8a84b",
-            fontSize: 13,
-            fontWeight: 700,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {playerName}
-        </span>
-      </div>
     </div>
   );
 }
