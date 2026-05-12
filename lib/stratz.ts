@@ -172,13 +172,11 @@ async function fetchGraphQL(accountId: number): Promise<StratzPlayerData | null>
       body: JSON.stringify({ query: PLAYER_QUERY, variables: { accountId } }),
       signal: controller.signal,
     });
-    console.log("[stratz] response status:", res.status);
     if (!res.ok) return null;
     const json = await res.json() as {
       data?: { player?: StratzPlayerData | null };
       errors?: { message: string }[];
     };
-    console.log("[stratz] raw response keys:", Object.keys(json.data || {}));
     return json.data?.player ?? null;
   } catch {
     return null;
@@ -469,7 +467,6 @@ export async function fetchPlayerData(accountId: number): Promise<PlayerData> {
 
   const stratzPlayer =
     playerResult.status === "fulfilled" ? playerResult.value : null;
-  console.log("[stratz] stratzPlayer:", stratzPlayer ? "found" : "null");
   const heroList =
     heroListResult.status === "fulfilled" ? heroListResult.value : [];
   const itemConstants =
@@ -478,7 +475,6 @@ export async function fetchPlayerData(accountId: number): Promise<PlayerData> {
   if (!stratzPlayer) throw new Error("PRIVATE_PROFILE");
 
   const sa = stratzPlayer.steamAccount;
-  console.log("[stratz] steamAccount:", JSON.stringify(sa));
   if (sa.isAnonymous === true) throw new Error("PRIVATE_PROFILE");
 
   const player: PlayerProfile = {

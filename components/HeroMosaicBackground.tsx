@@ -32,11 +32,9 @@ export default function HeroMosaicBackground() {
           .map((key) => key.replace("npc_dota_hero_", ""))
           .filter(Boolean);
         const resolved = names.length > 0 ? names : FALLBACK_HEROES;
-        console.log("[Mosaic] heroes loaded:", resolved.length);
         setHeroNames(resolved);
       })
       .catch(() => {
-        console.log("[Mosaic] heroes loaded:", FALLBACK_HEROES.length);
         setHeroNames(FALLBACK_HEROES);
       });
   }, [shouldReduceMotion]);

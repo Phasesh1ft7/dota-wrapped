@@ -871,7 +871,6 @@ export interface YearInNumbers {
 }
 
 export function getYearInNumbers(yearMatches: Match[], heroes: Hero[]): YearInNumbers {
-  console.log('sample match kills:', yearMatches.slice(0, 3).map(m => m.kills));
   const totalGames = yearMatches.length;
   const totalSeconds = yearMatches.reduce((s, m) => s + m.duration, 0);
   const totalHours = Math.round((totalSeconds / 3600) * 10) / 10;

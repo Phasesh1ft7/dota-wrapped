@@ -475,12 +475,6 @@ async function resolveBestHeroMatchDetails(
   const baseXpm = bestMatch.xp_per_min > 0 ? bestMatch.xp_per_min : null;
   const baseLastHits = bestMatch.last_hits;
   const baseHeroDamage = bestMatch.hero_damage;
-  console.log('[computed base fields]', {
-    baseGpm,
-    baseXpm,
-    baseLastHits,
-  });
-
   try {
     const full = await fetchJson<FullMatchData>(
       `${BASE_URL}/matches/${bestMatch.match_id}`,
@@ -490,13 +484,6 @@ async function resolveBestHeroMatchDetails(
       (p) => String(p.account_id) === String(accountId),
     );
     if (!player) return { details: { gpm: baseGpm, lastHits: baseLastHits, xpm: baseXpm, netWorth: null, heroDamage: baseHeroDamage ?? 0, isParsed: false, items: [0, 0, 0, 0, 0, 0] }, careerMatches };
-    console.log('[FullMatchPlayer raw]', {
-      gold_per_min: player.gold_per_min,
-      xp_per_min: player.xp_per_min,
-      last_hits: player.last_hits,
-      hero_damage: player.hero_damage,
-    });
-
     const items = [
       player.item_0 ?? 0, player.item_1 ?? 0, player.item_2 ?? 0,
       player.item_3 ?? 0, player.item_4 ?? 0, player.item_5 ?? 0,
@@ -709,7 +696,6 @@ export async function fetchHeroRelicMatches(
   }
 
   const parsedCount = results.filter(r => Object.keys(r.ability_uses).length > 0).length;
-  console.log(`Relic data: ${parsedCount}/${matchIds.length} matches parsed`);
   return { aggregated, parsedCount };
 }
 

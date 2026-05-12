@@ -244,7 +244,6 @@ export default function Card1Hero({
       <div style={{ padding: "12px 14px 0" }}>
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
           {displayAbilities.map((ability) => {
-            console.log('[ability icon src]', `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${ability}.png`);
             return (
               <div
                 key={ability}
