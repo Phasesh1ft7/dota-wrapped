@@ -151,6 +151,12 @@ export default async function WrappedPage({ params }: Props) {
     ? topHeroId
     : (matchesData.heroes?.[0] ? Number(matchesData.heroes[0].hero_id) : (matchesData.heroCareerMatches?.[0]?.hero_id ?? -1));
 
+  console.log('[heroRelicsConfig] accountId:', accountId);
+  console.log('[heroRelicsConfig] fallbackHeroId:', fallbackHeroId);
+  console.log('[heroRelicsConfig] topHeroId:', topHeroId);
+  console.log('[heroRelicsConfig] matchesData.heroes[0]:', JSON.stringify(matchesData.heroes?.[0]));
+  console.log('[heroRelicsConfig] heroCareerMatches[0]:', JSON.stringify(matchesData.heroCareerMatches?.[0]));
+
   const mostPlayedHeroCleanName = fallbackHeroId > 0
     ? (heroMap.get(fallbackHeroId)?.name.replace("npc_dota_hero_", "") ?? "")
     : "";
